@@ -1,0 +1,19 @@
+*.log
+.htaccess
+composer.lock
+
+public/wp
+vendor
+public/wp-content/plugins
+public/wp-config.php
+public/wp-content/uploads
+
+#gitignore for theme folder
+!/public/wp-content/themes/dew-energy
+/public/wp-content/themes/dew-energy/node_modules
+/public/wp-content/themes/dew-energy/dist/css
+/public/wp-content/themes/dew-energy/dist/js
+/public/wp-content/themes/dew-energy/main.js
+/public/wp-content/themes/dew-energy/style.css
+/public/wp-content/themes/dew-energy/*.map
+/public/wp-content/themes/dew-energy/.sass-cache
