@@ -9,11 +9,11 @@ public/wp-config.php
 public/wp-content/uploads
 
 #gitignore for theme folder
-!/public/wp-content/themes/dew-energy
-/public/wp-content/themes/dew-energy/node_modules
-/public/wp-content/themes/dew-energy/dist/css
-/public/wp-content/themes/dew-energy/dist/js
-/public/wp-content/themes/dew-energy/main.js
-/public/wp-content/themes/dew-energy/style.css
-/public/wp-content/themes/dew-energy/*.map
-/public/wp-content/themes/dew-energy/.sass-cache
+!/public/wp-content/themes/ColoredCow
+/public/wp-content/themes/ColoredCow/node_modules
+/public/wp-content/themes/ColoredCow/dist/css
+/public/wp-content/themes/ColoredCow/dist/js
+/public/wp-content/themes/ColoredCow/main.js
+/public/wp-content/themes/ColoredCow/style.css
+/public/wp-content/themes/ColoredCow/*.map
+/public/wp-content/themes/ColoredCow/.sass-cache
