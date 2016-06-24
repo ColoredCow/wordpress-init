@@ -45,6 +45,7 @@
       ```
 
    * Change the table prefix as you need in wp-config.php.
+   
    * Set the Debug Mode to true for your development environment.
       ```
       define('WP_DEBUG', true);
@@ -56,7 +57,7 @@
 
    * Update configurations for newly created database in *public/wp-config.php*.
       ```
-      define('DB_NAME', 'psg');
+      define('DB_NAME', '');
       
       define('DB_USER', '');
       

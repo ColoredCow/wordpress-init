@@ -1,8 +1,8 @@
 <?php
 
-/*
-Template Name: Landing
-*/
+/**
+ * Template Name: Landing
+ */
 
     get_header();
 ?>
@@ -10,6 +10,6 @@ Template Name: Landing
 
 
 
-    <?php 
-        get_footer(); 
-    ?>
+<?php 
+    get_footer(); 
+?>

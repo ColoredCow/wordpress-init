@@ -88,7 +88,7 @@ define('WP_HOME', 'http://' . $_SERVER['SERVER_NAME'] . WP_ROOT);
  * Default Theme
  */
 
-define('WP_DEFAULT_THEME', 'dew-energy');
+define('WP_DEFAULT_THEME', 'ColoredCow');
 
 $table_prefix  = 'put_your_table_prefix_here_';
 
