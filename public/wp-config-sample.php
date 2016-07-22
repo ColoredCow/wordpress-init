@@ -69,7 +69,7 @@ define('WP_ENVIRONMENT', 'Development');
 if (WP_ENVIRONMENT == 'Production') {
 	define('WP_ROOT', '');
 } elseif (WP_ENVIRONMENT == 'Development') {
-	define('WP_ROOT', '/dew-energy/public');
+	define('WP_ROOT', '/put_your_project_name_here/public');
 }
 
 define('WP_CONTENT_DIR', __DIR__ . '/wp-content');

@@ -23,7 +23,6 @@
    * Generate a new set of auth keys. [Generate](https://api.wordpress.org/secret-key/1.1/salt/)
 
    * Replace the auth key code in wp-config.php with newly generated set of auth keys.
-
       ```
   
       define('AUTH_KEY', '');
@@ -46,9 +45,16 @@
 
    * Change the table prefix as you need in wp-config.php.
    
+   * Configure the WP_ROOT for your development environment.
+      ```
+      define('WP_ROOT', '/put_your_project_name_here/public');
+      
+      ```
+   
    * Set the Debug Mode to true for your development environment.
       ```
       define('WP_DEBUG', true);
+      
       ```
 
 6. Configure the database.
@@ -66,6 +72,7 @@
       define('DB_HOST', '');
       
       define('DB_CHARSET', 'utf8');
+      
       ```
 
    * All geared up for the famous [5 minute install](https://codex.wordpress.org/Installing_WordPress). 
