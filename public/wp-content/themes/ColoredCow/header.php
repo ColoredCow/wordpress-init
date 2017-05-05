@@ -5,11 +5,8 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="initial-scale=1">
-    <title></title>
-    <?php do_action('wp_head'); ?>
-    <script type="text/javascript">
-        var ajaxurl = '<?php echo admin_url('admin-ajax.php');?>';
-    </script>
+    <title><?php echo bloginfo('name'); ?></title>
+    <?php wp_head(); ?>
 </head>
 
 <body>
