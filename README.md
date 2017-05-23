@@ -1,5 +1,11 @@
 # Wordpress Installation ColoredCow
 
+## Prerequisites
+
+1. Composer
+2. NPM
+3. Grunt
+
 ## Installation
 
 1. Fork this master repository.
