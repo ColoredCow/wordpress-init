@@ -1,6 +1,7 @@
 *.log
 .htaccess
 composer.lock
+.DS_Store
 
 public/wp
 vendor
