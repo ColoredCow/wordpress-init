@@ -17,22 +17,11 @@ module.exports = function (grunt) {
         sass: {
             dist: {
                 options: {
-                    style: 'compact'
+                    style: 'compressed',
+                    sourcemap: 'none',
                 },
                 files: {
                     'style.css': 'src/scss/style.scss',
-                }
-            }
-        },
-
-        cssmin: {
-            options: {
-                mergeIntoShorthands: false,
-                roundingPrecision: -1,
-            },
-            target: {
-                files: {
-                    'style.css': 'style.css'
                 }
             }
         },
@@ -68,9 +57,8 @@ module.exports = function (grunt) {
     grunt.loadNpmTasks('grunt-contrib');
     grunt.loadNpmTasks('grunt-contrib-uglify');
     grunt.loadNpmTasks('grunt-contrib-sass');
-    grunt.loadNpmTasks('grunt-contrib-cssmin');
     grunt.loadNpmTasks('grunt-uncss');
 
-    grunt.registerTask('default', ['sass', 'cssmin', 'uncss:dist', 'uglify']);
+    grunt.registerTask('default', ['sass', 'uncss:dist', 'uglify']);
 
 };
