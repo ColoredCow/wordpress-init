@@ -8,11 +8,11 @@ Tags: coloredcow
 Text Domain: coloredcow
 */
 
-@import 'assets/_bootstrap';
-
 @import 'variables';
 @import 'mixin';
 @import 'fonts';
+
+@import 'assets/bootstrap/bootstrap';
 
 // sass code for image alignment with content
 .alignright{
