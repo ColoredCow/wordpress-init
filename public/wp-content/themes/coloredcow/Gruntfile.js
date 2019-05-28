@@ -43,6 +43,7 @@ module.exports = function (grunt) {
             scripts: {
                 files: [
                     'src/js/*.js',
+                    'src/scss/*/*.scss',
                     'src/scss/*.scss',
                 ],
                 tasks: ['default'],
@@ -59,6 +60,7 @@ module.exports = function (grunt) {
     grunt.loadNpmTasks('grunt-contrib-sass');
     grunt.loadNpmTasks('grunt-uncss');
 
-    grunt.registerTask('default', ['sass', 'uncss:dist', 'uglify']);
+    grunt.registerTask('default', ['sass', 'uglify']);
+    // grunt.registerTask('default', ['sass', 'uncss:dist', 'uglify']);
 
 };

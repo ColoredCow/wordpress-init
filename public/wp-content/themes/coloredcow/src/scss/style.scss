@@ -36,4 +36,10 @@ Text Domain: coloredcow
 	}
 }
 
-@import 'media';
+@import 'utilities';
+@import 'media/sm';
+@import 'media/md';
+@import 'media/lg';
+@import 'media/xl';
+@import 'media/hd';
+@import 'header/style';

@@ -1,0 +1,32 @@
+@media only screen and (min-width: 1200px) {
+	@each $size, $length in $sizes {
+		.w-xl-#{$size} {
+			width: $length !important;
+		}
+		.h-xl-#{$size} {
+			height: $length !important;
+		}
+		.min-h-xl-#{$size} {
+			min-height: $length;
+		}
+		.max-h-xl-#{$size} {
+			max-height: $length;
+		}
+		.min-w-xl-#{$size} {
+			min-width: $length;
+		}
+		.max-w-xl-#{$size} {
+			max-width: $length;
+		}
+	}
+	@each $name, $value in $line-heights {
+		.leading-xl-#{$name} {
+			line-height: $value;
+		}
+	}
+	@each $size, $value in $font-sizes {
+		.fz-xl-#{$size} {
+			font-size: $value !important;
+		}
+	}
+}
