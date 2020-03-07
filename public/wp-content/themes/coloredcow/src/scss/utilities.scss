@@ -1,0 +1,43 @@
+.text-decoration-none {
+	text-decoration: none;
+}
+.h-screen {
+    height: 100vh !important;
+}
+.w-screen {
+    width: 100vw !important;
+}
+.overflow-hidden {
+	overflow: hidden;
+}
+
+@each $size, $length in $sizes {
+	.min-h-#{$size} {
+		min-height: $length;
+	}
+	.max-h-#{$size} {
+		max-height: $length;
+	}
+	.min-w-#{$size} {
+		min-width: $length;
+	}
+	.max-w-#{$size} {
+		max-width: $length;
+	}
+}
+
+@each $name, $value in $line-heights {
+	.leading-#{$name} {
+		line-height: $value;
+	}
+}
+@each $size, $value in $font-sizes {
+	.fz-#{$size} {
+		font-size: $value !important;
+	}
+}
+@import 'utilities/sm';
+@import 'utilities/md';
+@import 'utilities/lg';
+@import 'utilities/xl';
+@import 'utilities/hd';

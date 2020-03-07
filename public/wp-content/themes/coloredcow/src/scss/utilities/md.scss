@@ -1,0 +1,32 @@
+@media only screen and (min-width: 768px) {
+	@each $size, $length in $sizes {
+		.w-md-#{$size} {
+			width: $length !important;
+		}
+		.h-md-#{$size} {
+			height: $length !important;
+		}
+		.min-h-md-#{$size} {
+			min-height: $length;
+		}
+		.max-h-md-#{$size} {
+			max-height: $length;
+		}
+		.min-w-md-#{$size} {
+			min-width: $length;
+		}
+		.max-w-md-#{$size} {
+			max-width: $length;
+		}
+	}
+	@each $name, $value in $line-heights {
+		.leading-md-#{$name} {
+			line-height: $value;
+		}
+	}
+	@each $size, $value in $font-sizes {
+		.fz-md-#{$size} {
+			font-size: $value !important;
+		}
+	}
+}

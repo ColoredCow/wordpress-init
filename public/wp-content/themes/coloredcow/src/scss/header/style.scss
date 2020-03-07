@@ -1,0 +1,42 @@
+
+.navbar-toggle{
+	@extend .ml-auto;
+	&:focus {
+		outline: 0;
+	}
+	.icon-bar {
+		height: 3px;
+		width: 20px;
+		right: 0;
+		&.top{
+			transition: 0.1s all;
+			transform: rotate(0deg);
+			top: -6px;
+		}
+		&.center{
+			top: 0;
+		}
+		&.bottom{
+			transition: 0.1s all;
+			transform: rotate(0deg);
+			top: 6px;
+		}
+	}
+}
+.navbar-toggle-cross{
+	.icon-bar{
+		&.top{
+			transition: 0.1s all;
+			transform: rotate(-45deg);
+			top: 0;
+		}
+		&.center{
+			visibility: hidden;
+		}
+		&.bottom{
+			transition: 0.1s all;
+			transform: rotate(45deg);
+			top: 0;
+		}
+	}
+}
