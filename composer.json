@@ -17,7 +17,7 @@
     "require": {
         "php": ">=7.3",
         "composer/installers": "^1.4",
-        "johnpbloch/wordpress": "5.*",
+        "johnpbloch/wordpress": "*",
         "wpackagist-plugin/wordfence": "*",
         "wpackagist-plugin/wp-smushit": "*"
     },
