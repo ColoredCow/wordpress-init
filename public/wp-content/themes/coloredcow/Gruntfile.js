@@ -18,7 +18,6 @@ module.exports = function (grunt) {
             dist: {
                 options: {
                     style: 'compressed',
-                    sourcemap: 'none',
                 },
                 files: {
                     'style.css': 'src/scss/style.scss',
@@ -55,11 +54,10 @@ module.exports = function (grunt) {
 
     });
 
-    grunt.loadNpmTasks('grunt-contrib');
+    grunt.loadNpmTasks('grunt-contrib-clean');
     grunt.loadNpmTasks('grunt-contrib-uglify');
     grunt.loadNpmTasks('grunt-contrib-sass');
     grunt.loadNpmTasks('grunt-uncss');
-
     grunt.registerTask('default', ['sass', 'uglify']);
     // grunt.registerTask('default', ['sass', 'uncss:dist', 'uglify']);
 
