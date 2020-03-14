@@ -1,7 +1,7 @@
 {
   "name": "ColoredCow",
   "version": "1.0.0",
-  "description": "ColoredCow package for wordpress installation",
+  "description": "ColoredCow package for WordPress installation",
   "license": "GPL-3.0",
   "repository": {
     "type": "git",
