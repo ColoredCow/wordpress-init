@@ -1,0 +1,45 @@
+/*!
+Theme Name: KarmaGolf
+Author: ColoredCow
+Author URI: http://coloredcow.com
+Description: Official theme ColoredCow
+Version: 1.0.0
+Tags: coloredcow
+Text Domain: coloredcow
+*/
+
+@import 'variables';
+@import 'mixin';
+@import 'fonts';
+
+@import 'assets/bootstrap/bootstrap';
+
+// sass code for image alignment with content
+.alignright{
+	float: right;
+	&img{
+		margin: 0 0 1em 1em;
+	}
+}
+.alignleft{
+	float: left;
+	&img{
+		margin: 0 1em 1em 0;
+	}
+}
+.aligncenter{
+	display: block;
+	margin-left: auto;
+	margin-right: auto;
+	&img{
+		display: block;
+	}
+}
+
+@import 'utilities';
+@import 'media/sm';
+@import 'media/md';
+@import 'media/lg';
+@import 'media/xl';
+@import 'media/hd';
+@import 'header/style';

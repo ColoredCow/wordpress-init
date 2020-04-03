@@ -5,14 +5,13 @@ composer.lock
 
 public/wp
 vendor
-public/wp-content/plugins
+!public/wp-content/plugins
 public/wp-config.php
 public/wp-content/uploads
 
 #gitignore for theme folder
-!/public/wp-content/themes/coloredcow
-/public/wp-content/themes/coloredcow/node_modules
-/public/wp-content/themes/coloredcow/main.js
-/public/wp-content/themes/coloredcow/style.css
-/public/wp-content/themes/coloredcow/*.map
-/public/wp-content/themes/coloredcow/.sass-cache
+!/public/wp-content/themes/
+/public/wp-content/themes/*/node_modules
+/public/wp-content/themes/*/*.map
+/public/wp-content/themes/*/.sass-cache
+
