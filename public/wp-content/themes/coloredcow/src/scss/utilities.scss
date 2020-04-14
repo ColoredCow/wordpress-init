@@ -36,6 +36,49 @@
 		font-size: $value !important;
 	}
 }
+
+.bg-no-repeat {
+	background-repeat: no-repeat !important;
+}
+.bg-size-contain {
+	background-size: contain !important;
+}
+.bg-position-center {
+    background-position: center !important;
+}
+.bg-size-cover{
+	background-size: cover;
+}
+.background-position-x-right{
+	background-position-x: right !important;
+}
+
+@each $name, $value in $spacers{
+	.top-#{$name} {
+		top: $value;
+	}
+	.top-n#{$name} {
+		top: $value * -1 !important;
+	}
+	.bottom-#{$name} {
+		bottom: $value;
+	}
+	.bottom-n#{$name} {
+		bottom: $value * -1;
+	}
+	.right-#{$name} {
+		right: $value;
+	}
+	.right-n#{$name} {
+		right: $value * -1;
+	}
+	.left-#{$name} {
+		left: $value;
+	}
+	.left-n#{$name} {
+		left: $value * -1;
+	}
+}
 @import 'utilities/sm';
 @import 'utilities/md';
 @import 'utilities/lg';
