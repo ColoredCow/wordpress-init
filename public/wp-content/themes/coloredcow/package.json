@@ -8,6 +8,7 @@
     "url": "git://github.com/ColoredCow/wordpress-init.git"
   },
   "devDependencies": {
+    "eslint": "^6.8.0",
     "grunt": "^1.0.*",
     "grunt-contrib-sass": "^1.0.*",
     "grunt-contrib-uglify": "^4.0.*",
