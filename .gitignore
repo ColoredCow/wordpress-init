@@ -10,6 +10,7 @@ public/wp-config.php
 public/wp-content/uploads
 
 #gitignore for theme folder
+!public/wp-content/themes/Toolbox-2020/src/scss/assets/bootstrap/vendor
 !/public/wp-content/themes/
 /public/wp-content/themes/*/node_modules
 /public/wp-content/themes/*/*.map
