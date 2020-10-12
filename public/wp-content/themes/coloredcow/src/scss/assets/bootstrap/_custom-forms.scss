@@ -9,7 +9,6 @@
 
 .custom-control {
   position: relative;
-  z-index: 1;
   display: block;
   min-height: $font-size-base * $line-height-base;
   padding-left: $custom-control-gutter + $custom-control-indicator-size;
@@ -22,10 +21,7 @@
 
 .custom-control-input {
   position: absolute;
-  left: 0;
   z-index: -1; // Put the input behind the label so it doesn't overlay text
-  width: $custom-control-indicator-size;
-  height: ($font-size-base * $line-height-base + $custom-control-indicator-size) / 2;
   opacity: 0;
 
   &:checked ~ .custom-control-label::before {
@@ -55,8 +51,6 @@
     @include box-shadow($custom-control-indicator-active-box-shadow);
   }
 
-  // Use [disabled] and :disabled to work around https://github.com/twbs/bootstrap/issues/28247
-  &[disabled],
   &:disabled {
     ~ .custom-control-label {
       color: $custom-control-label-disabled-color;
@@ -75,9 +69,7 @@
 .custom-control-label {
   position: relative;
   margin-bottom: 0;
-  color: $custom-control-label-color;
   vertical-align: top;
-  cursor: $custom-control-cursor;
 
   // Background-color and (when enabled) gradient
   &::before {
@@ -103,7 +95,9 @@
     width: $custom-control-indicator-size;
     height: $custom-control-indicator-size;
     content: "";
-    background: no-repeat 50% / #{$custom-control-indicator-bg-size};
+    background-repeat: no-repeat;
+    background-position: center center;
+    background-size: $custom-control-indicator-bg-size;
   }
 }
 
@@ -119,7 +113,7 @@
 
   .custom-control-input:checked ~ .custom-control-label {
     &::after {
-      background-image: escape-svg($custom-checkbox-indicator-icon-checked);
+      background-image: $custom-checkbox-indicator-icon-checked;
     }
   }
 
@@ -130,16 +124,16 @@
       @include box-shadow($custom-checkbox-indicator-indeterminate-box-shadow);
     }
     &::after {
-      background-image: escape-svg($custom-checkbox-indicator-icon-indeterminate);
+      background-image: $custom-checkbox-indicator-icon-indeterminate;
     }
   }
 
   .custom-control-input:disabled {
     &:checked ~ .custom-control-label::before {
-      @include gradient-bg($custom-control-indicator-checked-disabled-bg);
+      background-color: $custom-control-indicator-checked-disabled-bg;
     }
     &:indeterminate ~ .custom-control-label::before {
-      @include gradient-bg($custom-control-indicator-checked-disabled-bg);
+      background-color: $custom-control-indicator-checked-disabled-bg;
     }
   }
 }
@@ -150,19 +144,18 @@
 
 .custom-radio {
   .custom-control-label::before {
-    // stylelint-disable-next-line property-blacklist
     border-radius: $custom-radio-indicator-border-radius;
   }
 
   .custom-control-input:checked ~ .custom-control-label {
     &::after {
-      background-image: escape-svg($custom-radio-indicator-icon-checked);
+      background-image: $custom-radio-indicator-icon-checked;
     }
   }
 
   .custom-control-input:disabled {
     &:checked ~ .custom-control-label::before {
-      @include gradient-bg($custom-control-indicator-checked-disabled-bg);
+      background-color: $custom-control-indicator-checked-disabled-bg;
     }
   }
 }
@@ -180,17 +173,15 @@
       left: -($custom-switch-width + $custom-control-gutter);
       width: $custom-switch-width;
       pointer-events: all;
-      // stylelint-disable-next-line property-blacklist
       border-radius: $custom-switch-indicator-border-radius;
     }
 
     &::after {
-      top: add(($font-size-base * $line-height-base - $custom-control-indicator-size) / 2, $custom-control-indicator-border-width * 2);
-      left: add(-($custom-switch-width + $custom-control-gutter), $custom-control-indicator-border-width * 2);
+      top: calc(#{(($font-size-base * $line-height-base - $custom-control-indicator-size) / 2)} + #{$custom-control-indicator-border-width * 2});
+      left: calc(#{-($custom-switch-width + $custom-control-gutter)} + #{$custom-control-indicator-border-width * 2});
       width: $custom-switch-indicator-size;
       height: $custom-switch-indicator-size;
       background-color: $custom-control-indicator-border-color;
-      // stylelint-disable-next-line property-blacklist
       border-radius: $custom-switch-indicator-border-radius;
       @include transition(transform .15s ease-in-out, $custom-forms-transition);
     }
@@ -205,7 +196,7 @@
 
   .custom-control-input:disabled {
     &:checked ~ .custom-control-label::before {
-      @include gradient-bg($custom-control-indicator-checked-disabled-bg);
+      background-color: $custom-control-indicator-checked-disabled-bg;
     }
   }
 }
@@ -222,15 +213,18 @@
   width: 100%;
   height: $custom-select-height;
   padding: $custom-select-padding-y ($custom-select-padding-x + $custom-select-indicator-padding) $custom-select-padding-y $custom-select-padding-x;
-  font-family: $custom-select-font-family;
-  @include font-size($custom-select-font-size);
   font-weight: $custom-select-font-weight;
   line-height: $custom-select-line-height;
   color: $custom-select-color;
   vertical-align: middle;
-  background: $custom-select-bg $custom-select-background;
+  background: $custom-select-background;
+  background-color: $custom-select-bg;
   border: $custom-select-border-width solid $custom-select-border-color;
-  @include border-radius($custom-select-border-radius, 0);
+  @if $enable-rounded {
+    border-radius: $custom-select-border-radius;
+  } @else {
+    border-radius: 0;
+  }
   @include box-shadow($custom-select-box-shadow);
   appearance: none;
 
@@ -238,9 +232,8 @@
     border-color: $custom-select-focus-border-color;
     outline: 0;
     @if $enable-shadows {
-      @include box-shadow($custom-select-box-shadow, $custom-select-focus-box-shadow);
+      box-shadow: $custom-select-box-shadow, $custom-select-focus-box-shadow;
     } @else {
-      // Avoid using mixin so we can pass custom focus shadow properly
       box-shadow: $custom-select-focus-box-shadow;
     }
 
@@ -269,13 +262,7 @@
 
   // Hides the default caret in IE11
   &::-ms-expand {
-    display: none;
-  }
-
-  // Remove outline from select box in FF
-  &:-moz-focusring {
-    color: transparent;
-    text-shadow: 0 0 0 $custom-select-color;
+    opacity: 0;
   }
 }
 
@@ -284,7 +271,7 @@
   padding-top: $custom-select-padding-y-sm;
   padding-bottom: $custom-select-padding-y-sm;
   padding-left: $custom-select-padding-x-sm;
-  @include font-size($custom-select-font-size-sm);
+  font-size: $custom-select-font-size-sm;
 }
 
 .custom-select-lg {
@@ -292,7 +279,7 @@
   padding-top: $custom-select-padding-y-lg;
   padding-bottom: $custom-select-padding-y-lg;
   padding-left: $custom-select-padding-x-lg;
-  @include font-size($custom-select-font-size-lg);
+  font-size: $custom-select-font-size-lg;
 }
 
 
@@ -321,8 +308,6 @@
     box-shadow: $custom-file-focus-box-shadow;
   }
 
-  // Use [disabled] and :disabled to work around https://github.com/twbs/bootstrap/issues/28247
-  &[disabled] ~ .custom-file-label,
   &:disabled ~ .custom-file-label {
     background-color: $custom-file-disabled-bg;
   }
@@ -346,7 +331,6 @@
   z-index: 1;
   height: $custom-file-height;
   padding: $custom-file-padding-y $custom-file-padding-x;
-  font-family: $custom-file-font-family;
   font-weight: $custom-file-font-weight;
   line-height: $custom-file-line-height;
   color: $custom-file-color;
@@ -381,7 +365,7 @@
 
 .custom-range {
   width: 100%;
-  height: add($custom-range-thumb-height, $custom-range-thumb-focus-box-shadow-width * 2);
+  height: calc(#{$custom-range-thumb-height} + #{$custom-range-thumb-focus-box-shadow-width * 2});
   padding: 0; // Need to reset padding
   background-color: transparent;
   appearance: none;
