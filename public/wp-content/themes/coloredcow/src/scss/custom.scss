@@ -3,23 +3,23 @@
 @import 'fonts';
 
 // sass code for image alignment with content
-.alignright{
+.alignright {
 	float: right;
-	&img{
+	&img {
 		margin: 0 0 1em 1em;
 	}
 }
-.alignleft{
+.alignleft {
 	float: left;
-	&img{
+	&img {
 		margin: 0 1em 1em 0;
 	}
 }
-.aligncenter{
+.aligncenter {
 	display: block;
 	margin-left: auto;
 	margin-right: auto;
-	&img{
+	&img {
 		display: block;
 	}
 }
