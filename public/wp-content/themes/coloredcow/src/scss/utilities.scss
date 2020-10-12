@@ -79,6 +79,52 @@
 		left: $value * -1;
 	}
 }
+
+@each $name, $value in $rounded {
+	.rounded-#{$name} {
+		border-radius: $value !important;
+	}
+	.rounded-top-#{$name} {
+		border-top-left-radius: $value;
+		border-top-right-radius: $value;
+	}
+	.rounded-bottom-#{$name} {
+		border-bottom-left-radius: $value;
+		border-bottom-right-radius: $value;
+	}
+	.rounded-top-left-#{$name} {
+		border-top-left-radius: $value;
+	}
+	.rounded-top-right-#{$name} {
+		border-top-right-radius: $value;
+	}
+	.rounded-bottom-right-#{$name} {
+		border-bottom-right-radius: $value;
+	}
+	.rounded-bottom-left-#{$name} {
+		border-bottom-left-radius: $value;
+	}
+}
+
+@each $name, $value in $sizes {
+	.border-#{$name} {
+		border-width: $value !important;
+	}
+}
+
+@each $name, $value in $z-indexes {
+	.z-index-#{$name} {
+		z-index: $value !important;
+	}
+	.z-index-n#{$name} {
+		z-index: $value * -1 !important;
+	}
+}
+
+.c-pointer {
+	cursor: pointer !important;
+}
+
 @import 'utilities/sm';
 @import 'utilities/md';
 @import 'utilities/lg';

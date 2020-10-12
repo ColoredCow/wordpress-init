@@ -1,0 +1,36 @@
+@import 'variables';
+@import 'mixin';
+@import 'fonts';
+
+// sass code for image alignment with content
+.alignright{
+	float: right;
+	&img{
+		margin: 0 0 1em 1em;
+	}
+}
+.alignleft{
+	float: left;
+	&img{
+		margin: 0 1em 1em 0;
+	}
+}
+.aligncenter{
+	display: block;
+	margin-left: auto;
+	margin-right: auto;
+	&img{
+		display: block;
+	}
+}
+
+a {
+	@extend .text-decoration-none;
+}
+
+@import 'media/sm';
+@import 'media/md';
+@import 'media/lg';
+@import 'media/xl';
+@import 'media/hd';
+@import 'header/style';

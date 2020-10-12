@@ -3,10 +3,10 @@
 <html lang="en">
 
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="initial-scale=1">
-    <title><?php echo bloginfo('name'); ?></title>
-    <?php wp_head(); ?>
+	<meta charset="utf-8">
+	<meta name="viewport" content="initial-scale=1">
+	<title><?php echo bloginfo('name'); ?></title>
+	<?php wp_head(); ?>
 </head>
 <header>
 	<div class="mobile-menu position-fixed w-screen h-screen text-center bg-white pl-0 d-none flex-column d-xl-none font-primary fz-18 leading-22 pt-14 pt-md-15 justify-content-center">
