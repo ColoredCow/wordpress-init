@@ -20,22 +20,22 @@
 
 // ** MySQL settings - You can get this info from your web host ** //
 /** The name of the database for WordPress */
-define('DB_NAME', 'database_name_here');
+define( 'DB_NAME', 'database_name_here' );
 
 /** MySQL database username */
-define('DB_USER', 'username_here');
+define( 'DB_USER', 'username_here' );
 
 /** MySQL database password */
-define('DB_PASSWORD', 'password_here');
+define( 'DB_PASSWORD', 'password_here' );
 
 /** MySQL hostname */
-define('DB_HOST', 'localhost');
+define( 'DB_HOST', 'localhost' );
 
 /** Database Charset to use in creating database tables. */
-define('DB_CHARSET', 'utf8');
+define( 'DB_CHARSET', 'utf8' );
 
 /** The Database Collate type. Don't change this if in doubt. */
-define('DB_COLLATE', '');
+define( 'DB_COLLATE', '' );
 
 /**#@+
  * Authentication Unique Keys and Salts.
@@ -46,36 +46,36 @@ define('DB_COLLATE', '');
  *
  * @since 2.6.0
  */
-define('AUTH_KEY',         'put your unique phrase here');
-define('SECURE_AUTH_KEY',  'put your unique phrase here');
-define('LOGGED_IN_KEY',    'put your unique phrase here');
-define('NONCE_KEY',        'put your unique phrase here');
-define('AUTH_SALT',        'put your unique phrase here');
-define('SECURE_AUTH_SALT', 'put your unique phrase here');
-define('LOGGED_IN_SALT',   'put your unique phrase here');
-define('NONCE_SALT',       'put your unique phrase here');
+define( 'AUTH_KEY', 'put your unique phrase here' );
+define( 'SECURE_AUTH_KEY', 'put your unique phrase here' );
+define( 'LOGGED_IN_KEY', 'put your unique phrase here' );
+define( 'NONCE_KEY', 'put your unique phrase here' );
+define( 'AUTH_SALT', 'put your unique phrase here' );
+define( 'SECURE_AUTH_SALT', 'put your unique phrase here' );
+define( 'LOGGED_IN_SALT', 'put your unique phrase here' );
+define( 'NONCE_SALT', 'put your unique phrase here' );
 
 /**#@-*/
 /**
- * Updated Path for Wordpress Core Files and Content
+ * Updated Path for WordPress Core Files and Content
  *
  * Because the wp-content directory isn’t in the same place as the core WordPress files ,
  * we need to tell the config file where it actually is.
  * The same with the core WordPress files.
  */
 
-define('WP_ENVIRONMENT', 'Development');
+define( 'WP_ENVIRONMENT', 'Development' );
 
-if (WP_ENVIRONMENT == 'Production') {
-	define('WP_ROOT', '');
-} elseif (WP_ENVIRONMENT == 'Development') {
-	define('WP_ROOT', '/put_your_project_name_here/public');
+if ( WP_ENVIRONMENT == 'Production' ) {
+	define( 'WP_ROOT', '' );
+} elseif ( WP_ENVIRONMENT == 'Development' ) {
+	define( 'WP_ROOT', '/put_your_project_name_here/public' );
 }
 
-define('WP_CONTENT_DIR', __DIR__ . '/wp-content');
-define('WP_CONTENT_URL', 'http://' . $_SERVER['SERVER_NAME'] . WP_ROOT . '/wp-content');
-define('WP_SITEURL', 'http://' . $_SERVER['SERVER_NAME'] . WP_ROOT . '/wp');
-define('WP_HOME', 'http://' . $_SERVER['SERVER_NAME'] . WP_ROOT);
+define( 'WP_CONTENT_DIR', __DIR__ . '/wp-content' );
+define( 'WP_CONTENT_URL', 'http://' . $_SERVER['SERVER_NAME'] . WP_ROOT . '/wp-content' );
+define( 'WP_SITEURL', 'http://' . $_SERVER['SERVER_NAME'] . WP_ROOT . '/wp' );
+define( 'WP_HOME', 'http://' . $_SERVER['SERVER_NAME'] . WP_ROOT );
 
 /**
  * WordPress Database Table prefix.
@@ -88,9 +88,9 @@ define('WP_HOME', 'http://' . $_SERVER['SERVER_NAME'] . WP_ROOT);
  * Default Theme
  */
 
-define('WP_DEFAULT_THEME', 'ColoredCow');
+define( 'WP_DEFAULT_THEME', 'ColoredCow' );
 
-$table_prefix  = 'put_your_table_prefix_here_';
+$table_prefix = 'put_your_table_prefix_here_';
 
 /**
  * For developers: WordPress debugging mode.
@@ -104,13 +104,14 @@ $table_prefix  = 'put_your_table_prefix_here_';
  *
  * @link https://codex.wordpress.org/Debugging_in_WordPress
  */
-define('WP_DEBUG', false);
+define( 'WP_DEBUG', false );
 
 /* That's all, stop editing! Happy blogging. */
 
 /** Absolute path to the WordPress directory. */
-if ( !defined('ABSPATH') )
-	define('ABSPATH', dirname(__FILE__) . '/');
+if ( ! defined( 'ABSPATH' ) ) {
+	define( 'ABSPATH', dirname( __FILE__ ) . '/' );
+}
 
 /** Sets up WordPress vars and included files. */
-require_once(ABSPATH . 'wp-settings.php');
+require_once ABSPATH . 'wp-settings.php';
