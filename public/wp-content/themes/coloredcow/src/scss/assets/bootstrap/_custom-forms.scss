@@ -177,7 +177,7 @@
     }
 
     &::after {
-      top: calc(#{(math.div($font-size-base * $line-height-base - $custom-control-indicator-size, 2))});
+      top: calc(#{(math.div($font-size-base * $line-height-base - $custom-control-indicator-size, 2))} + #{$custom-control-indicator-border-width * 2});
       left: calc(#{-($custom-switch-width + $custom-control-gutter)} + #{$custom-control-indicator-border-width * 2});
       width: $custom-switch-indicator-size;
       height: $custom-switch-indicator-size;
