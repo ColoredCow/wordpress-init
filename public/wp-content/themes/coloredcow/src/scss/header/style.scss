@@ -1,6 +1,6 @@
 
 .navbar-toggle{
-	@extend .ml-auto;
+	@extend .ml-auto !optional;
 	&:focus {
 		outline: 0;
 	}
