@@ -15,13 +15,13 @@
 	.min-h-#{$size} {
 		min-height: $length;
 	}
-	.max-h-#{$size} {
+	.mh-#{$size} {
 		max-height: $length;
 	}
 	.min-w-#{$size} {
 		min-width: $length;
 	}
-	.max-w-#{$size} {
+	.mw-#{$size} {
 		max-width: $length;
 	}
 }

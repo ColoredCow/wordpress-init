@@ -6,7 +6,7 @@ $theme-colors: (
     'theme-secondary': $theme-secondary,
 );
 
-$spacer: 10px;
+$spacer: 0.625rem;
 $spacers: (
     0: 0,
     1: ($spacer * 0.25), // 2.5px
