@@ -1,7 +1,7 @@
 ## Wordpress Installation using Boiler Plate
 1. Clone this repository.
 ```sh
-git clone https://github.com/coloredcow-admin/coloredcow.git
+git clone https://github.com/ColoredCow/wordpress-init.git
 ```
 2. On your local machine, install composer in the root directory using the CLI.
 ```sh

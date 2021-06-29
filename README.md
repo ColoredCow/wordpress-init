@@ -1,5 +1,5 @@
 ### Introduction
-:wave: Welcome to ColoredCow Website. 
+:wave: Welcome to WordPress-init Boiler Plate. 
 
 ### Prerequisites
 Check our [prerequisites](./docs/prerequisites.md) to get started.
