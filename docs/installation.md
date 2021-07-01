@@ -3,18 +3,18 @@
 ```sh
 git clone https://github.com/ColoredCow/wordpress-init.git
 ```
-2. Change remote URL to your project github URL using the following command.
+2. Change remote URL to your project GitHub URL using the following command.
 ```sh
-git remote add origin https://github.com/user/repo.git
+git remote set-url origin https://repository-url
 ```
-3. Change the theme name to your project theme name
+3. Change the theme name from ColoredCow to your_project_name. Theme folder can be found inside ***/public/wp-content/themes/***
 4. Update .gitignore with the new theme name (your_project_name).
-5. Push the code to your github project repo
+5. Push the code to your GitHub project repo
 6. On your local machine, install composer in the root directory using the CLI.
 ```sh
 composer install
 ```
-7. Run `npm install` in ***/public/wp-content/themes/project_name/*** directory.
+7. Run `npm install` in ***/public/wp-content/themes/your_project_name/*** directory.
 8. Run `grunt` to check if the grunt installation worked. You should see a style.css and main.js inside your theme.
 9. Secure your WordPress installation.
    * Make a copy of `wp-sample-config.php` in *wordpress-init/public/* directory and name it as `wp-config.php`.

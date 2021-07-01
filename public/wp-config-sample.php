@@ -64,9 +64,34 @@ define('NONCE_SALT',       'put your unique phrase here');
  * The same with the core WordPress files.
  */
 
+/**
+ * Root directory of your WordPress installation.
+ */
+
+define('WP_ROOT', '');
+
+/**
+ * Directory for your themes, plugins and uploads files.
+ */
+
 define('WP_CONTENT_DIR', __DIR__ . '/wp-content');
+
+/**
+ * Full URL to the wp-content directory.
+ */
+
 define('WP_CONTENT_URL', 'http://' . $_SERVER['SERVER_NAME'] . WP_ROOT . '/wp-content');
+
+/**
+ * The address where your WordPress core files reside.
+ */
+
 define('WP_SITEURL', 'http://' . $_SERVER['SERVER_NAME'] . WP_ROOT . '/wp');
+
+/**
+ * The landing address for a user using the site URL.
+ */
+
 define('WP_HOME', 'http://' . $_SERVER['SERVER_NAME'] . WP_ROOT);
 
 /**
