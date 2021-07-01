@@ -3,12 +3,10 @@
 ```sh
 git clone https://github.com/ColoredCow/wordpress-init.git
 ```
-
 2. Change remote URL to your project github URL using the following command.
 ```sh
 git remote add origin https://github.com/user/repo.git
 ```
-
 3. Change the theme name to your project theme name
 4. Update .gitignore with the new theme name (your_project_name).
 5. Push the code to your github project repo
