@@ -1,5 +1,5 @@
 ### Introduction
-:wave: Welcome to WordPress-init Boiler Plate. 
+:wave: Welcome to WordPress-init boilerplate. 
 
 ### Prerequisites
 Check our [prerequisites](./docs/prerequisites.md) to get started.

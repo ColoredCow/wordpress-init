@@ -64,14 +64,6 @@ define('NONCE_SALT',       'put your unique phrase here');
  * The same with the core WordPress files.
  */
 
-define('WP_ENVIRONMENT', 'Development');
-
-if (WP_ENVIRONMENT == 'Production') {
-	define('WP_ROOT', '');
-} elseif (WP_ENVIRONMENT == 'Development') {
-	define('WP_ROOT', '/put_your_project_name_here/public');
-}
-
 define('WP_CONTENT_DIR', __DIR__ . '/wp-content');
 define('WP_CONTENT_URL', 'http://' . $_SERVER['SERVER_NAME'] . WP_ROOT . '/wp-content');
 define('WP_SITEURL', 'http://' . $_SERVER['SERVER_NAME'] . WP_ROOT . '/wp');
