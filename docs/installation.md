@@ -5,7 +5,8 @@ git clone https://github.com/ColoredCow/wordpress-init.git
 ```
 2. Change remote URL to your project GitHub URL using the following command.
 ```sh
-git remote set-url origin https://repository-url
+git remote set-url origin https://github.com/user_name/project_name
+git remote -v # will output the project github url if above command ran successfully
 ```
 3. Change the theme name from ColoredCow to your_project_name. Theme folder can be found inside ***/public/wp-content/themes/***
 4. Update .gitignore with the new theme name (your_project_name).
