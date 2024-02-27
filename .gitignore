@@ -4,7 +4,7 @@ composer.lock
 .DS_Store
 
 public/wp
-vendor
+/vendor/
 !public/wp-content/plugins
 public/wp-config.php
 public/wp-content/uploads
