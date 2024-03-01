@@ -8,4 +8,4 @@ Check our [prerequisites](./docs/prerequisites.md) to get started.
 Use our [installation guidelines](./docs/installation.md) to set up the project on your local.
 
 ### WPCS Guide
-Use our [WPCS guide](./docs/WPCS.md) to set up the WPCS formatter on your local.
+Use our [WPCS guide](https://github.com/ColoredCow/resources/blob/master/wordpress/WPCS.md) to set up the WPCS formatter on your local.
