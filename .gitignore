@@ -5,7 +5,7 @@ composer.lock
 
 public/wp
 /vendor/
-!public/wp-content/plugins
+!public/wp-content/plugins/*
 public/wp-config.php
 public/wp-content/uploads
 
@@ -15,5 +15,3 @@ public/wp-content/uploads
 /public/wp-content/themes/*/*.map
 /public/wp-content/themes/*/.sass-cache
 !public/wp-content/themes/*/src/scss/assets/bootstrap/vendor
-
-

@@ -14,9 +14,13 @@ namespace Smush\Core\Integrations\NextGen;
 
 use C_Component_Registry;
 use C_Gallery_Storage;
+use nggdb;
 use Smush\App\Media_Library;
 use Smush\Core\Core;
+use Smush\Core\Helper;
 use Smush\Core\Integrations\NextGen;
+use Smush\Core\Settings;
+use stdClass;
 use WP_Smush;
 
 if ( ! defined( 'WPINC' ) ) {
@@ -84,6 +88,8 @@ class Admin extends NextGen {
 	 */
 	public $ng_stats;
 
+	protected $settings;
+
 	/**
 	 * Admin constructor.
 	 *
@@ -91,6 +97,7 @@ class Admin extends NextGen {
 	 */
 	public function __construct( Stats $stats ) {
 		$this->ng_stats = $stats;
+		$this->settings = Settings::get_instance();
 
 		// Update the number of columns.
 		add_filter( 'ngg_manage_images_number_of_columns', array( $this, 'wp_smush_manage_images_number_of_columns' ) );
@@ -105,7 +112,14 @@ class Admin extends NextGen {
 		add_action( 'ngg_delete_gallery', array( $this->ng_stats, 'update_stats_cache' ) );
 
 		// Update the Super Smush count, after the smushing.
-		add_action( 'wp_smush_image_optimised_nextgen', array( $this, 'update_lists' ), '', 2 );
+		add_action( 'wp_smush_image_optimised_nextgen', array( $this, 'update_lists_after_optimizing' ), '', 2 );
+
+		// Reset smush data after restoring the image.
+		add_action( 'ngg_recovered_image', array( $this, 'reset_smushdata' ) );
+
+		add_action( 'wp_ajax_nextgen_get_stats', array( $this, 'ajax_get_stats' ) );
+
+		add_filter( 'wp_smush_nextgen_scan_stats', array( $this, 'scan_images' ) );
 	}
 
 	/**
@@ -173,7 +187,7 @@ class Admin extends NextGen {
 			// Check Image metadata, if smushed, print the stats or super smush button.
 			if ( ! empty( $image->meta_data['wp_smush'] ) ) {
 				// Echo the smush stats.
-				return $this->ng_stats->show_stats( $image->pid, $image->meta_data['wp_smush'], $image_type );
+				return $this->show_stats( $image->pid, $image->meta_data['wp_smush'], $image_type );
 			}
 
 			// Print the status of image, if Not smushed.
@@ -193,90 +207,33 @@ class Admin extends NextGen {
 				'utm_medium'   => 'plugin',
 				'utm_campaign' => 'smush_bulksmush_issues_filesizelimit_notice',
 			),
-			'https://premium.wpmudev.org/project/wp-smush-pro/'
+			'https://wpmudev.com/project/wp-smush-pro/'
 		);
 
 		if ( WP_Smush::is_pro() ) {
 			$error_in_bulk = esc_html__( '{{smushed}}/{{total}} images were successfully compressed, {{errors}} encountered issues.', 'wp-smushit' );
 		} else {
 			$error_in_bulk = sprintf(
-				/* translators: %1$s - opening link tag, %2$s - </a> */
-				esc_html__( '{{smushed}}/{{total}} images were successfully compressed, {{errors}} encountered issues. Are you hitting the 5MB "size limit exceeded" warning? %1$sUpgrade to Smush Pro for FREE%2$s to optimize image files up to 32MB.', 'wp-smushit' ),
+				/* translators: %1$s - opening link tag, %2$s - Close the link </a> */
+				esc_html__( '{{smushed}}/{{total}} images were successfully compressed, {{errors}} encountered issues. Are you hitting the 5MB "size limit exceeded" warning? %1$sUpgrade to Smush Pro%2$s to optimize unlimited image files.', 'wp-smushit' ),
 				'<a href="' . esc_url( $upgrade_url ) . '" target="_blank">',
 				'</a>'
 			);
 		}
 
 		$wp_smush_msgs = array(
-			'resmush'          => esc_html__( 'Super-Smush', 'wp-smushit' ),
-			'smush_now'        => esc_html__( 'Smush Now', 'wp-smushit' ),
-			'error_in_bulk'    => $error_in_bulk,
-			'all_resmushed'    => esc_html__( 'All images are fully optimized.', 'wp-smushit' ),
-			'restore'          => esc_html__( 'Restoring image...', 'wp-smushit' ),
-			'smushing'         => esc_html__( 'Smushing image...', 'wp-smushit' ),
-			'checking'         => esc_html__( 'Checking images...', 'wp-smushit' ),
-			// Button text.
-			'resmush_check'    => esc_html__( 'RE-CHECK IMAGES', 'wp-smushit' ),
-			'resmush_complete' => esc_html__( 'CHECK COMPLETE', 'wp-smushit' ),
+			'nonce'         => wp_create_nonce( 'wp-smush-ajax' ),
+			'resmush'       => esc_html__( 'Super-Smush', 'wp-smushit' ),
+			'smush_now'     => esc_html__( 'Smush Now', 'wp-smushit' ),
+			'error_in_bulk' => $error_in_bulk,
+			'all_resmushed' => esc_html__( 'All images are fully optimized.', 'wp-smushit' ),
+			'restore'       => esc_html__( 'Restoring image...', 'wp-smushit' ),
+			'smushing'      => esc_html__( 'Smushing image...', 'wp-smushit' ),
 		);
 
 		wp_localize_script( $handle, 'wp_smush_msgs', $wp_smush_msgs );
 
-		// If premium, Super smush allowed, all images are smushed, localize lossless smushed ids for bulk compression.
-		$resmush_ids = get_option( 'wp-smush-nextgen-resmush-list', array() );
-		if ( $resmush_ids ) {
-			$this->resmush_ids = $resmush_ids;
-		}
-
-		// Setup image counts ( Total, Smushed, Super-smushed, Remaining ).
-		$this->setup_image_counts();
-
-		// Get the Latest Stats.
-		$this->stats = $this->ng_stats->get_smush_stats();
-
-		// Get the unsmushed ids, used for localized stats as well as normal localization.
-		$unsmushed = $this->ng_stats->get_ngg_images( 'unsmushed' );
-		$unsmushed = ( ! empty( $unsmushed ) && is_array( $unsmushed ) ) ? array_keys( $unsmushed ) : '';
-
-		$smushed = $this->ng_stats->get_ngg_images();
-		$smushed = ( ! empty( $smushed ) && is_array( $smushed ) ) ? array_keys( $smushed ) : '';
-
-		$this->smushed = $smushed;
-		if ( ! empty( $_REQUEST['ids'] ) ) {
-			// Sanitize the ids and assign it to a variable.
-			$this->ids = array_map( 'intval', explode( ',', $_REQUEST['ids'] ) );
-		} else {
-			$this->ids = $unsmushed;
-		}
-
-		$this->super_smushed = get_option( 'wp-smush-super_smushed_nextgen', array() );
-		$this->super_smushed = ! empty( $this->super_smushed['ids'] ) ? $this->super_smushed['ids'] : array();
-
-		// If we have images to be resmushed, Update supersmush list.
-		if ( ! empty( $this->resmush_ids ) && ! empty( $this->super_smushed ) ) {
-			$this->super_smushed = array_diff( $this->super_smushed, $this->resmush_ids );
-		}
-
-		// If supersmushed images are more than total, clean it up.
-		if ( count( $this->super_smushed ) > $this->total_count ) {
-			$this->super_smushed = $this->cleanup_super_smush_data();
-		}
-
-		// Array of all smushed, unsmushed and lossless ids.
-		$data = array(
-			'count_smushed'      => $this->smushed_count,
-			'count_supersmushed' => count( $this->super_smushed ),
-			'count_total'        => $this->total_count,
-			'count_images'       => $this->image_count,
-			'smushed'            => $smushed,
-			'unsmushed'          => $unsmushed,
-			'resmush'            => $this->resmush_ids,
-		);
-
-		// Add the stats to array.
-		if ( ! empty( $this->stats ) && is_array( $this->stats ) ) {
-			$data = array_merge( $data, $this->stats );
-		}
+		$data = $this->ng_stats->get_global_stats();
 
 		wp_localize_script( $handle, 'wp_smushit_data', $data );
 	}
@@ -360,7 +317,10 @@ class Admin extends NextGen {
 	 * @param int $attachment_id  Attachment ID.
 	 */
 	public function update_resmush_list( $attachment_id ) {
-		WP_Smush::get_instance()->core()->mod->smush->update_resmush_list( $attachment_id, 'wp-smush-nextgen-resmush-list' );
+		if ( $this->ng_stats->get_reoptimize_list()->has_id( $attachment_id ) ) {
+			return $this->ng_stats->get_reoptimize_list()->remove_id( $attachment_id );
+		}
+		return $this->ng_stats->get_reoptimize_list()->add_id( $attachment_id );
 	}
 
 	/**
@@ -410,7 +370,7 @@ class Admin extends NextGen {
 		update_option( 'wp_smush_stats_nextgen', $nextgen_stats, false );
 
 		// Remove from Super Smush list.
-		WP_Smush::get_instance()->core()->mod->smush->update_super_smush_count( $attachment_id, 'remove', 'wp-smush-super_smushed_nextgen' );
+		$this->ng_stats->get_supper_smushed_list()->remove_id( $image_id );
 	}
 
 	/**
@@ -419,40 +379,23 @@ class Admin extends NextGen {
 	 * @param int   $image_id  Image ID.
 	 * @param array $stats     Stats.
 	 */
-	public function update_lists( $image_id, $stats ) {
-		WP_Smush::get_instance()->core()->mod->smush->update_lists( $image_id, $stats, 'wp-smush-super_smushed_nextgen' );
-		if ( ! empty( $this->resmush_ids ) && in_array( $image_id, $this->resmush_ids ) ) {
-			$this->update_resmush_list( $image_id );
+	public function update_lists_after_optimizing( $image_id, $stats ) {
+		if ( isset( $stats['stats']['lossy'] ) && 1 === (int) $stats['stats']['lossy'] ) {
+			$this->ng_stats->get_supper_smushed_list()->add_id( $image_id );
 		}
+		$this->update_resmush_list( $image_id );
 	}
 
 	/**
 	 * Initialize NextGen Gallery Stats
 	 */
 	public function setup_image_counts() {
-		$smushed_images = $this->ng_stats->get_ngg_images( 'smushed' );
-
-		// Check if resmush ids are not set, get it.
-		if ( empty( $this->resmush_ids ) ) {
-			$this->resmush_ids = get_option( 'wp-smush-nextgen-resmush-list', array() );
-		}
-
-		// I fwe have images to be resmushed, exclude it.
-		if ( ! empty( $this->resmush_ids ) ) {
-			// Get the Smushed images, exlude resmush ids.
-			$smushed_images = array_diff_key( $smushed_images, array_flip( $this->resmush_ids ) );
-		}
-
-		// Set the counts.
-		$this->total_count = $this->ng_stats->total_count();
-
-		// Includes the count of different sizes an image might have.
-		$this->image_count = $this->get_image_count( $smushed_images );
-
-		// Count of images ( Attachments ), Does not includes additioanl sizes that might have been created.
-		$this->smushed_count = isset( $smushed_images ) && is_array( $smushed_images ) ? count( $smushed_images ) : $smushed_images;
-
-		$this->remaining_count = $this->ng_stats->get_ngg_images( 'unsmushed', true );
+		$this->total_count     = $this->ng_stats->total_count();
+		$this->smushed_count   = $this->ng_stats->get_smushed_count();
+		$this->image_count     = $this->ng_stats->get_smushed_image_count();
+		$this->resmush_ids     = $this->ng_stats->get_reoptimize_list()->get_ids();
+		$this->super_smushed   = $this->ng_stats->get_supper_smushed_count();
+		$this->remaining_count = $this->ng_stats->get_remaining_count();
 	}
 
 	/**
@@ -541,22 +484,383 @@ class Admin extends NextGen {
 	}
 
 	/**
-	 * Cleanup Super-smush images array against the all ids in gallery
+	 * Reset smush data after restoring the image.
 	 *
-	 * @return array|mixed|void
+	 * @since 3.10.0
+	 *
+	 * @param stdClass     $image                  Image object for NextGen gallery.
+	 * @param false|string $attachment_file_path   The full file path, if it's provided we will reset the dimension.
 	 */
-	private function cleanup_super_smush_data() {
-		$super_smushed = get_option( 'wp-smush-super_smushed_nextgen', array() );
-		$ids           = $this->ng_stats->total_count( false, true );
-
-		if ( is_array( $super_smushed ) && ! empty( $super_smushed['ids'] ) && is_array( $ids ) ) {
-			$super_smushed['ids'] = array_intersect( $super_smushed['ids'], $ids );
+	public function reset_smushdata( $image, $attachment_file_path = false ) {
+		if ( empty( $image->meta_data['wp_smush'] ) && empty( $image->meta_data['wp_smush_resize_savings'] ) ) {
+			return;
 		}
 
-		update_option( 'wp-smush-super_smushed_nextgen', $super_smushed );
+		$this->ng_stats->subtract_image_stats( $image );
 
-		return $super_smushed['ids'];
+		// Remove the Meta, And send json success.
+		$image->meta_data['wp_smush'] = '';
 
+		// Remove resized data.
+		if ( ! empty( $image->meta_data['wp_smush_resize_savings'] ) ) {
+			$image->meta_data['wp_smush_resize_savings'] = '';
+
+			if ( $attachment_file_path && file_exists( $attachment_file_path ) ) {
+				// Update the dimension.
+				list( $width, $height ) = getimagesize( $attachment_file_path );
+				if ( $width ) {
+					$image->meta_data['width']         = $width;
+					$image->meta_data['full']['width'] = $width;
+				}
+				if ( $height ) {
+					$image->meta_data['height']         = $height;
+					$image->meta_data['full']['height'] = $height;
+				}
+			}
+		}
+
+		// Update metadata.
+		nggdb::update_image_meta( $image->pid, $image->meta_data );
+
+		/**
+		 * Called after the image has been successfully restored
+		 *
+		 * @since 3.7.0
+		 *
+		 * @param int $image_id ID of the restored image.
+		 */
+		do_action( 'wp_smush_image_nextgen_restored', $image->pid );
 	}
 
+	public function ajax_get_stats() {
+		check_ajax_referer( 'wp-smush-ajax', '_nonce' );
+
+		// Check capability.
+		if ( ! Helper::is_user_allowed( 'manage_options' ) ) {
+			wp_send_json_error(
+				array(
+					'notice'     => esc_html__( "You don't have permission to do this.", 'wp-smushit' ),
+					'noticeType' => 'error',
+				)
+			);
+		}
+
+		$stats = $this->get_global_stats_with_bulk_smush_content_and_notice();
+
+		wp_send_json_success( $stats );
+	}
+
+	private function get_global_stats_with_bulk_smush_content_and_notice() {
+		$stats           = $this->get_global_stats_with_bulk_smush_content();
+		$remaining_count = $stats['remaining_count'];
+
+		if ( $remaining_count > 0 ) {
+			$stats['noticeType'] = 'warning';
+			$stats['notice']     = sprintf(
+			/* translators: %1$d - number of images, %2$s - opening a tag, %3$s - closing a tag */
+				esc_html__( 'Image check complete, you have %1$d images that need smushing. %2$sBulk smush now!%3$s', 'wp-smushit' ),
+				$remaining_count,
+				'<a href="#" class="wp-smush-trigger-nextgen-bulk">',
+				'</a>'
+			);
+		} else {
+			$stats['notice']     = esc_html__( 'Yay! All images are optimized as per your current settings.', 'wp-smushit' );
+			$stats['noticeType'] = 'success';
+		}
+		return $stats;
+	}
+
+	private function get_global_stats_with_bulk_smush_content() {
+		$stats            = $this->ng_stats->get_global_stats();
+		$remaining_count  = $stats['remaining_count'];
+		$reoptimize_count = $stats['count_resmush'];
+		$optimize_count   = $stats['count_unsmushed'];
+
+		if ( $remaining_count > 0 ) {
+			ob_start();
+			WP_Smush::get_instance()->admin()->print_pending_bulk_smush_content(
+				$remaining_count,
+				$reoptimize_count,
+				$optimize_count
+			);
+			$content = ob_get_clean();
+			$stats['content'] = $content;
+		}
+
+		return $stats;
+	}
+
+	public function scan_images() {
+		$resmush_list = array();
+		$attachments  = $this->ng_stats->get_ngg_images();
+		// Check if any of the smushed image needs to be resmushed.
+		if ( ! empty( $attachments ) && is_array( $attachments ) ) {
+			foreach ( $attachments as $attachment_k => $metadata ) {
+				$smush_data = ! empty( $metadata['wp_smush'] ) ? $metadata['wp_smush'] : array();
+				if ( $this->should_resmush( $smush_data ) ) {
+					$resmush_list[] = $attachment_k;
+				}
+			}// End of Foreach Loop
+
+			// Store the resmush list in Options table.
+			$this->ng_stats->get_reoptimize_list()->update_ids( $resmush_list );
+		}
+
+		// Delete resmush list if empty.
+		if ( empty( $resmush_list ) ) {
+			$this->ng_stats->get_reoptimize_list()->delete_ids();
+		}
+
+		return $this->get_global_stats_with_bulk_smush_content_and_notice();
+	}
+
+	private function should_resmush( $smush_data ) {
+		if ( empty( $smush_data['stats'] ) ) {
+			return false;
+		}
+
+		return $this->lossy_optimization_required( $smush_data )
+			   || $this->strip_exif_optimization_required( $smush_data )
+			   || $this->original_optimization_required( $smush_data );
+	}
+
+	private function lossy_optimization_required( $smush_data ) {
+		$required_lossy_level = $this->settings->get_lossy_level_setting();
+		$current_lossy_level  = ! empty( $smush_data['stats']['lossy'] ) ? (int) $smush_data['stats']['lossy'] : 0;
+		return $current_lossy_level < $required_lossy_level;
+	}
+
+	private function strip_exif_optimization_required( $smush_data ) {
+		return $this->settings->get( 'strip_exif' ) && ! empty( $smush_data['stats']['keep_exif'] ) && ( 1 === (int) $smush_data['stats']['keep_exif'] );
+	}
+
+	private function original_optimization_required( $smush_data ) {
+		return $this->settings->get( 'original' ) && empty( $smush_data['sizes']['full'] );
+	}
+
+	/**
+	 * Display the smush stats for the image
+	 *
+	 * @param int        $pid            Image Id stored in nextgen table.
+	 * @param bool|array $wp_smush_data  Stats, stored after smushing the image.
+	 * @param string     $image_type     Used for determining if not gif, to show the Super Smush button.
+	 *
+	 * @uses Admin::column_html(), WP_Smush::get_restore_link(), WP_Smush::get_resmush_link()
+	 *
+	 * @return bool|array|string
+	 */
+	public function show_stats( $pid, $wp_smush_data = false, $image_type = '' ) {
+		if ( empty( $wp_smush_data ) ) {
+			return false;
+		}
+		$button_txt   = '';
+		$show_button  = false;
+		$show_resmush = false;
+
+		$bytes          = isset( $wp_smush_data['stats']['bytes'] ) ? $wp_smush_data['stats']['bytes'] : 0;
+		$bytes_readable = ! empty( $bytes ) ? size_format( $bytes, 1 ) : '';
+		$percent        = isset( $wp_smush_data['stats']['percent'] ) ? $wp_smush_data['stats']['percent'] : 0;
+		$percent        = $percent < 0 ? 0 : $percent;
+
+		$status_txt = '';
+		if ( isset( $wp_smush_data['stats']['size_before'] ) && $wp_smush_data['stats']['size_before'] == 0 && ! empty( $wp_smush_data['sizes'] ) ) {
+			$status_txt = __( 'Already Optimized', 'wp-smushit' );
+		} else {
+			if ( 0 === (int) $bytes || 0 === (int) $percent ) {
+				$status_txt = __( 'Already Optimized', 'wp-smushit' );
+
+				// Add resmush option if needed.
+				$show_resmush = $this->should_resmush( $wp_smush_data );
+				if ( $show_resmush ) {
+					$status_txt .= '<div class="sui-smush-media smush-status-links">';
+					$status_txt .= $this->get_resmsuh_link( $pid );
+					$status_txt .= '</div>';
+				}
+			} elseif ( ! empty( $percent ) && ! empty( $bytes_readable ) ) {
+				$status_txt  = sprintf( /* translators: %1$s: reduced by bytes, %2$s: size format */
+					__( 'Reduced by %1$s (%2$01.1f%%)', 'wp-smushit' ),
+					$bytes_readable,
+					number_format_i18n( $percent, 2 )
+				);
+				$status_txt .= '<div class="sui-smush-media smush-status-links">';
+
+				$show_resmush = $this->should_resmush( $wp_smush_data );
+
+				if ( $show_resmush ) {
+					$status_txt .= $this->get_resmsuh_link( $pid );
+				}
+
+				// Restore Image: Check if we need to show the restore image option.
+				$show_restore = $this->show_restore_option( $pid, $wp_smush_data );
+
+				if ( $show_restore ) {
+					if ( $show_resmush ) {
+						// Show Separator.
+						$status_txt .= ' | ';
+					}
+					$status_txt .= $this->get_restore_link( $pid );
+				}
+				// Show detailed stats if available.
+				if ( ! empty( $wp_smush_data['sizes'] ) ) {
+					if ( $show_resmush || $show_restore ) {
+						// Show Separator.
+						$status_txt .= ' | ';
+					} else {
+						// Show the link in next line.
+						$status_txt .= '<br />';
+					}
+					// Detailed Stats Link.
+					$status_txt .= '<a href="#" class="smush-stats-details">' . esc_html__( 'Smush stats', 'wp-smushit' ) . ' [<span class="stats-toggle">+</span>]</a>';
+
+					// Get metadata For the image
+					// Registry Object for NextGen Gallery.
+					$registry = C_Component_Registry::get_instance();
+
+					/**
+					 * Gallery Storage Object.
+					 *
+					 * @var C_Gallery_Storage $storage
+					 */
+					$storage = $registry->get_utility( 'I_Gallery_Storage' );
+
+					// get an array of sizes available for the $image.
+					$sizes = $storage->get_image_sizes();
+
+					$image = $storage->object->_image_mapper->find( $pid );
+
+					$full_image = $storage->get_image_abspath( $image, 'full' );
+
+					// Stats.
+					$stats = $this->get_detailed_stats( $pid, $wp_smush_data, array( 'sizes' => $sizes ), $full_image );
+
+					$status_txt .= $stats;
+					$status_txt .= '</div>';
+				}
+			}
+		}
+
+		// If show button is true for some reason, column html can print out the button for us.
+		return $this->column_html( $pid, $status_txt, $button_txt, $show_button, true );
+	}
+
+	/**
+	 * Returns the Stats for a image formatted into a nice table
+	 *
+	 * @param int    $image_id             Image ID.
+	 * @param array  $wp_smush_data        Smush data.
+	 * @param array  $attachment_metadata  Attachment metadata.
+	 * @param string $full_image           Full sized image.
+	 *
+	 * @return string
+	 */
+	private function get_detailed_stats( $image_id, $wp_smush_data, $attachment_metadata, $full_image ) {
+		$stats      = '<div id="smush-stats-' . $image_id . '" class="smush-stats-wrapper hidden">
+			<table class="wp-smush-stats-holder">
+				<thead>
+					<tr>
+						<th><strong>' . esc_html__( 'Image size', 'wp-smushit' ) . '</strong></th>
+						<th><strong>' . esc_html__( 'Savings', 'wp-smushit' ) . '</strong></th>
+					</tr>
+				</thead>
+				<tbody>';
+		$size_stats = $wp_smush_data['sizes'];
+
+		// Reorder Sizes as per the maximum savings.
+		uasort( $size_stats, array( $this, 'cmp' ) );
+
+		// Show Sizes and their compression.
+		foreach ( $size_stats as $size_key => $size_value ) {
+			$size_value = ! is_object( $size_value ) ? (object) $size_value : $size_value;
+			if ( $size_value->bytes > 0 ) {
+				$stats .= '<tr>
+				<td>' . strtoupper( $size_key ) . '</td>
+				<td>' . size_format( $size_value->bytes, 1 );
+
+			}
+
+			// Add percentage if set.
+			if ( isset( $size_value->percent ) && $size_value->percent > 0 ) {
+				$stats .= " ( $size_value->percent% )";
+			}
+
+			$stats .= '</td>
+			</tr>';
+		}
+		$stats .= '</tbody>
+			</table>
+		</div>';
+
+		return $stats;
+	}
+
+	/**
+	 * Compare Values
+	 *
+	 * @param object|array $a  First object.
+	 * @param object|array $b  Second object.
+	 *
+	 * @return int
+	 */
+	public function cmp( $a, $b ) {
+		if ( is_object( $a ) ) {
+			// Check and typecast $b if required.
+			$b = is_object( $b ) ? $b : (object) $b;
+
+			return $b->bytes - $a->bytes ;
+		} elseif ( is_array( $a ) ) {
+			$b = is_array( $b ) ? $b : (array) $b;
+
+			return $b['bytes'] - $a['bytes'];
+		}
+	}
+
+	/**
+	 * Generates a Resmush link for a image.
+	 *
+	 * @param int    $image_id  Attachment ID.
+	 * @param string $type      Type of attachment.
+	 *
+	 * @return bool|string
+	 */
+	private function get_resmsuh_link( $image_id ) {
+		if ( empty( $image_id ) ) {
+			return false;
+		}
+
+		$class = 'wp-smush-action wp-smush-title sui-tooltip sui-tooltip-constrained wp-smush-nextgen-resmush';
+
+		return sprintf(
+			'<a href="#" data-tooltip="%s" data-id="%d" data-nonce="%s" class="%s">%s</a>',
+			esc_html__( 'Smush image including original file', 'wp-smushit' ),
+			$image_id,
+			wp_create_nonce( 'wp-smush-resmush-' . $image_id ),
+			$class,
+			esc_html__( 'Resmush', 'wp-smushit' )
+		);
+	}
+
+	/**
+	 * Returns a restore link for given image id
+	 *
+	 * @param int    $image_id  Attachment ID.
+	 * @param string $type      Attachment type.
+	 *
+	 * @return bool|string
+	 */
+	private function get_restore_link( $image_id ) {
+		if ( empty( $image_id ) ) {
+			return false;
+		}
+
+		$class  = 'wp-smush-action wp-smush-title sui-tooltip wp-smush-nextgen-restore';
+
+		return sprintf(
+			'<a href="#" data-tooltip="%s" data-id="%d" data-nonce="%s" class="%s">%s</a>',
+			esc_html__( 'Restore original image', 'wp-smushit' ),
+			$image_id,
+			wp_create_nonce( 'wp-smush-restore-' . $image_id ),
+			$class,
+			esc_html__( 'Restore', 'wp-smushit' )
+		);
+	}
 }

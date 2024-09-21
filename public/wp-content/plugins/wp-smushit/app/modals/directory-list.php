@@ -33,15 +33,28 @@ if ( ! defined( 'WPINC' ) ) {
 
 			<div class="sui-box-body">
 				<p id="list-dialog-description">
-					<?php esc_html_e( 'Choose which folder you wish to smush. Smush will automatically include any images in subfolders of your selected folder.', 'wp-smushit' ); ?>
+					<?php esc_html_e( 'Choose which directory you wish to smush. Smush will automatically include any images in subdirectories of your selected directory.', 'wp-smushit' ); ?>
 				</p>
+				<div class="sui-toggle-content" style="margin-left: 0px;margin-bottom: 30px">
+					<div class="sui-notice sui-notice-info">
+						<div class="sui-notice-content">
+							<div class="sui-notice-message">
+								<i class="sui-notice-icon sui-icon-info sui-md" aria-hidden="true"></i>
+								<p><?php esc_html_e( 'Note: the wp-admin and wp-includes directories contain core WordPress files and are not selectable. Similarly, the auto-generated media directories in wp-content/uploads are not selectable here as they are processed by Bulk Smush.', 'wp-smushit' ); ?></p>
+							</div>
+						</div>
+					</div>
+				</div>
 				<div class="content"></div>
+
+				<?php wp_nonce_field( 'smush_get_dir_list', 'list_nonce' ); ?>
+				<?php wp_nonce_field( 'smush_get_image_list', 'image_list_nonce' ); ?>
 			</div>
 
 			<div class="sui-box-footer sui-content-right">
-				<span class="add-dir-loader"></span>
-				<button class="sui-modal-close sui-button sui-button-blue wp-smush-select-dir" disabled id="wp-smush-select-dir">
-					<?php esc_html_e( 'SMUSH', 'wp-smushit' ); ?>
+				<button class="sui-modal-close sui-button sui-button-blue" disabled id="wp-smush-select-dir">
+					<span class="sui-loading-text"><?php esc_html_e( 'Choose directory', 'wp-smushit' ); ?></span>
+					<span class="sui-icon-loader sui-loading" aria-hidden="true"></span>
 				</button>
 			</div>
 		</div>

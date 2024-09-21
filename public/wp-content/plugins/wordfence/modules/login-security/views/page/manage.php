@@ -17,16 +17,18 @@ if ($ownUser->ID == $user->ID) {
 }
 
 $enabled = \WordfenceLS\Controller_Users::shared()->has_2fa_active($user);
+$requires2fa = \WordfenceLS\Controller_Users::shared()->requires_2fa($user, $inGracePeriod, $requiredAt);
+$lockedOut = $requires2fa && !$enabled;
 
 ?>
-<p><?php printf(__('Two-Factor Authentication, or 2FA, significantly improves login security for your website. Wordfence 2FA works with a number of TOTP-based apps like Google Authenticator, FreeOTP, and Authy. For a full list of tested TOTP-based apps, <a href="%s" target="_blank" rel="noopener noreferrer">click here</a>.', 'wordfence-2fa'), \WordfenceLS\Controller_Support::esc_supportURL(\WordfenceLS\Controller_Support::ITEM_MODULE_LOGIN_SECURITY_2FA)); ?></p>
+<p><?php echo wp_kses(sprintf(__('Two-Factor Authentication, or 2FA, significantly improves login security for your website. Wordfence 2FA works with a number of TOTP-based apps like Google Authenticator, FreeOTP, and Authy. For a full list of tested TOTP-based apps, <a href="%s" target="_blank" rel="noopener noreferrer">click here</a>.', 'wordfence'), \WordfenceLS\Controller_Support::esc_supportURL(\WordfenceLS\Controller_Support::ITEM_MODULE_LOGIN_SECURITY_2FA)), array('a'=>array('href'=>array(), 'target'=>array(), 'rel'=>array()))); ?></p>
 <?php if ($canEditUsers): ?>
 <div id="wfls-editing-display" class="wfls-flex-row wfls-flex-row-xs-wrappable wfls-flex-row-equal-heights">
 	<div class="wfls-block wfls-always-active wfls-flex-item-full-width wfls-add-bottom">
 		<div class="wfls-block-header wfls-block-header-border-bottom">
 			<div class="wfls-block-header-content">
 				<div class="wfls-block-title">
-					<strong><?php printf(__('Editing User:&nbsp;&nbsp;%s <span class="wfls-text-plain">%s</span>', 'wordfence-2fa'), get_avatar($user->ID, 16, '', $user->user_login), \WordfenceLS\Text\Model_HTML::esc_html($user->user_login) . ($ownAccount ? ' ' . __('(you)', 'wordfence-2fa') : '')); ?></strong>
+					<strong><?php echo wp_kses(sprintf(__('Editing User:&nbsp;&nbsp;%s <span class="wfls-text-plain">%s</span>', 'wordfence'), get_avatar($user->ID, 16, '', $user->user_login), \WordfenceLS\Text\Model_HTML::esc_html($user->user_login) . ($ownAccount ? ' ' . __('(you)', 'wordfence') : '')), array('span'=>array('class'=>array()))); ?></strong>
 				</div>
 			</div>
 		</div>
@@ -56,19 +58,13 @@ $enabled = \WordfenceLS\Controller_Users::shared()->has_2fa_active($user);
 </div>
 <div id="wfls-activation-controls" class="wfls-flex-row wfls-flex-row-xs-wrappable wfls-flex-row-equal-heights"<?php if ($enabled) { echo ' style="display: none;"'; } ?>>
 	<?php
-		$secret = \WordfenceLS\Model_Crypto::random_bytes(20);
-		$base32 = new \WordfenceLS\Crypto\Model_Base2n(5, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567', false, true, true);
-		$base32Secret = $base32->encode($secret);
-		$totpURL = "otpauth://totp/" . rawurlencode(preg_replace('~^https?://~i', '', home_url()) . ' (' . $user->user_login . ')') . '?secret=' . $base32Secret . '&algorithm=SHA1&digits=6&period=30&issuer=Wordfence';
-		$codes = \WordfenceLS\Controller_Users::shared()->regenerate_recovery_codes();
+		$initializationData = new \WordfenceLS\Model_2faInitializationData($user);
 	?>
 	<!-- begin qr code -->
 	<div class="wfls-flex-row wfls-flex-row-equal-heights wfls-col-sm-half-padding-right wfls-flex-item-xs-100 wfls-flex-item-sm-50">
 		<?php
 		echo \WordfenceLS\Model_View::create('manage/code', array(
-			'secret' => $secret,
-			'base32Secret' => $base32Secret,
-			'totpURL' => $totpURL,
+			'initializationData' => $initializationData
 		))->render();
 		?>
 	</div>
@@ -77,14 +73,23 @@ $enabled = \WordfenceLS\Controller_Users::shared()->has_2fa_active($user);
 	<div class="wfls-flex-row wfls-flex-row-equal-heights wfls-col-sm-half-padding-left wfls-flex-item-xs-100 wfls-flex-item-sm-50">
 		<?php
 		echo \WordfenceLS\Model_View::create('manage/activate', array(
-			'secret' => $secret,
-			'base32Secret' => $base32Secret,
-			'recovery' => $codes,
-			'user' => $user,
+			'initializationData' => $initializationData
 		))->render();
 		?>
 	</div>
 	<!-- end activation -->
+</div>
+<div id="wfls-grace-period-controls" class="wfls-flex-row wfls-flex-row-xs-wrappable wfls-flex-row-equal-heights"<?php if ($enabled || !($lockedOut || $inGracePeriod)) { echo ' style="display: none;"'; } ?>>
+	<div class="wfls-flex-row wfls-flex-row-equal-heights wfls-flex-item-xs-100 wfls-add-top">
+		<?php
+		echo \WordfenceLS\Model_View::create('manage/grace-period', array(
+			'user' => $user,
+			'lockedOut' => $lockedOut,
+			'gracePeriod' => $inGracePeriod,
+			'requiredAt' => $requiredAt
+		))->render();
+		?>
+	</div>
 </div>
 <?php
 /**
@@ -100,15 +105,15 @@ if (empty($tz)) {
 }
 ?>
 <?php if (\WordfenceLS\Controller_Permissions::shared()->can_manage_settings()): ?>
-<p><?php _e('Server Time:', 'wordfence-2fa'); ?> <?php echo date('Y-m-d H:i:s', $time); ?> UTC (<?php echo \WordfenceLS\Controller_Time::format_local_time('Y-m-d H:i:s', $time) . ' ' . $tz; ?>)<br>
-	<?php _e('Browser Time:', 'wordfence-2fa'); ?> <script type="application/javascript">var date = new Date(); document.write(date.toUTCString() + ' (' + date.toString() + ')');</script><br>
+<p><?php esc_html_e('Server Time:', 'wordfence'); ?> <?php echo date('Y-m-d H:i:s', $time); ?> UTC (<?php echo \WordfenceLS\Controller_Time::format_local_time('Y-m-d H:i:s', $time) . ' ' . $tz; ?>)<br>
+	<?php esc_html_e('Browser Time:', 'wordfence'); ?> <script type="application/javascript">var date = new Date(); document.write(date.toUTCString() + ' (' + date.toString() + ')');</script><br>
 <?php
-if (\WordfenceLS\Controller_Settings::shared()->get_bool(\WordfenceLS\Controller_Settings::OPTION_USE_NTP)) {
-	echo __('Corrected Time (NTP):', 'wordfence-2fa') . ' ' . date('Y-m-d H:i:s', $correctedTime) . ' UTC (' . \WordfenceLS\Controller_Time::format_local_time('Y-m-d H:i:s', $correctedTime) . ' ' . $tz . ')<br>';
+if (\WordfenceLS\Controller_Settings::shared()->is_ntp_enabled()) {
+	echo esc_html__('Corrected Time (NTP):', 'wordfence') . ' ' . date('Y-m-d H:i:s', $correctedTime) . ' UTC (' . \WordfenceLS\Controller_Time::format_local_time('Y-m-d H:i:s', $correctedTime) . ' ' . $tz . ')<br>';
 }
 else if (WORDFENCE_LS_FROM_CORE && $correctedTime != $time) {
-	echo __('Corrected Time (WF):', 'wordfence-2fa') . ' ' . date('Y-m-d H:i:s', $correctedTime) . ' UTC (' . \WordfenceLS\Controller_Time::format_local_time('Y-m-d H:i:s', $correctedTime) . ' ' . $tz . ')<br>';
+	echo esc_html__('Corrected Time (WF):', 'wordfence') . ' ' . date('Y-m-d H:i:s', $correctedTime) . ' UTC (' . \WordfenceLS\Controller_Time::format_local_time('Y-m-d H:i:s', $correctedTime) . ' ' . $tz . ')<br>';
 }
 ?>
-<?php _e('Detected IP:', 'wordfence-2fa'); ?> <?php echo \WordfenceLS\Text\Model_HTML::esc_html(\WordfenceLS\Model_Request::current()->ip()); if (\WordfenceLS\Controller_Whitelist::shared()->is_whitelisted(\WordfenceLS\Model_Request::current()->ip())) { echo ' (' . __('whitelisted', 'wordfence-2fa') . ')'; } ?></p>
+<?php esc_html_e('Detected IP:', 'wordfence'); ?> <?php echo \WordfenceLS\Text\Model_HTML::esc_html(\WordfenceLS\Model_Request::current()->ip()); if (\WordfenceLS\Controller_Whitelist::shared()->is_whitelisted(\WordfenceLS\Model_Request::current()->ip())) { echo ' (' . esc_html__('allowlisted', 'wordfence') . ')'; } ?></p>
 <?php endif; ?>

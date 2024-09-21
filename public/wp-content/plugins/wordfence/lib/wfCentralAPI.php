@@ -37,6 +37,17 @@ class wfCentralAPIRequest {
 		$this->body = $body;
 		$this->args = $args;
 	}
+	
+	/**
+	 * Handles an internal error when making a Central API request (e.g., a second sodium_compat library with an
+	 * incompatible interface loading instead or in addition to ours).
+	 * 
+	 * @param Exception|Throwable $e
+	 */
+	public static function handleInternalCentralAPIError($e) {
+		error_log('Wordfence encountered an internal Central API error: ' . $e->getMessage());
+		error_log('Wordfence stack trace: ' . $e->getTraceAsString());
+	}
 
 	public function execute() {
 		$args = array(
@@ -59,6 +70,24 @@ class wfCentralAPIRequest {
 
 		$http = _wp_http_get_object();
 		$response = $http->request(WORDFENCE_CENTRAL_API_URL_SEC . $this->getEndpoint(), $args);
+
+		if (!is_wp_error($response)) {
+			$body = wp_remote_retrieve_body($response);
+			$statusCode = wp_remote_retrieve_response_code($response);
+
+			// Check if site has been disconnected on Central's end, but the plugin is still trying to connect.
+			if ($statusCode === 404 && strpos($body, 'Site has been disconnected') !== false) {
+				// Increment attempt count.
+				$centralDisconnectCount = get_site_transient('wordfenceCentralDisconnectCount');
+				set_site_transient('wordfenceCentralDisconnectCount', ++$centralDisconnectCount, 86400);
+
+				// Once threshold is hit, disconnect Central.
+				if ($centralDisconnectCount > 3) {
+					wfRESTConfigController::disconnectConfig();
+				}
+			}
+		}
+
 		return new wfCentralAPIResponse($response);
 	}
 
@@ -178,7 +207,9 @@ class wfCentralAPIResponse {
 	public function returnErrorArray() {
 		return array(
 			'err'      => 1,
-			'errorMsg' => sprintf(__('HTTP %d received from Wordfence Central: %s', 'wordfence'),
+			'errorMsg' => sprintf(
+				/* translators: 1. HTTP status code. 2. Error message. */
+				__('HTTP %1$d received from Wordfence Central: %2$s', 'wordfence'),
 				$this->getStatusCode(), $this->parseErrorJSON($this->getBody())),
 		);
 	}
@@ -232,11 +263,14 @@ class wfCentralAuthenticatedAPIRequest extends wfCentralAPIRequest {
 			try {
 				$token = $this->fetchToken();
 				break;
+			} catch (wfCentralConfigurationException $e) {
+				wfConfig::set('wordfenceCentralConfigurationIssue', true);
+				throw new wfCentralAPIException(__('Fetching token for Wordfence Central authentication due to configuration issue.', 'wordfence'));
 			} catch (wfCentralAPIException $e) {
 				continue;
 			}
 		}
-		if (empty($token)) {
+		if (empty($token)) {  
 			if (isset($e)) {
 				throw $e;
 			} else {
@@ -248,11 +282,12 @@ class wfCentralAuthenticatedAPIRequest extends wfCentralAPIRequest {
 		if (!empty($tokenContents['body']['exp'])) {
 			set_transient('wordfenceCentralJWT' . wfConfig::get('wordfenceCentralSiteID'), $token, $tokenContents['body']['exp'] - time());
 		}
+		wfConfig::set('wordfenceCentralConfigurationIssue', false);
 		return $token;
 	}
 
 	public function fetchToken() {
-		require_once(WORDFENCE_PATH . '/crypto/vendor/paragonie/sodium_compat/autoload-fast.php');
+		require_once(WORDFENCE_PATH . '/lib/sodium_compat_fast.php');
 
 		$defaultArgs = array(
 			'timeout' => 6,
@@ -281,7 +316,12 @@ class wfCentralAuthenticatedAPIRequest extends wfCentralAPIRequest {
 
 		// Sign nonce to pull down JWT.
 		$data = $nonce . '|' . $siteID;
-		$signature = ParagonIE_Sodium_Compat::crypto_sign_detached($data, $secretKey);
+		try {
+			$signature = ParagonIE_Sodium_Compat::crypto_sign_detached($data, $secretKey);
+		}
+		catch (SodiumException $e) {
+			throw new wfCentralConfigurationException('Signing failed, likely due to malformed secret key', $e);
+		}
 		$request = new wfCentralAPIRequest(sprintf('/site/%s/login', $siteID), 'POST', null, array(
 			'data'      => $data,
 			'signature' => ParagonIE_Sodium_Compat::bin2hex($signature),
@@ -306,6 +346,14 @@ class wfCentralAPIException extends Exception {
 
 }
 
+class wfCentralConfigurationException extends RuntimeException {
+
+	public function __construct($message, $previous = null) {
+		parent::__construct($message, 0, $previous);
+	}
+
+}
+
 class wfCentral {
 
 	/**
@@ -319,14 +367,22 @@ class wfCentral {
 	 * @return bool
 	 */
 	public static function isConnected() {
-		return self::isSupported() && ((bool) wfConfig::get('wordfenceCentralConnected', false));
+		return self::isSupported() && ((bool) self::_isConnected());
 	}
 
 	/**
 	 * @return bool
 	 */
 	public static function isPartialConnection() {
-		return !wfConfig::get('wordfenceCentralConnected') && wfConfig::get('wordfenceCentralSiteID');
+		return !self::_isConnected() && wfConfig::get('wordfenceCentralSiteID');
+	}
+
+	public static function _isConnected($forceUpdate = false) {
+		static $isConnected;
+		if (!isset($isConnected) || $forceUpdate) {
+			$isConnected = wfConfig::get('wordfenceCentralConnected', false);
+		}
+		return $isConnected;
 	}
 
 	/**
@@ -361,8 +417,15 @@ class wfCentral {
 		try {
 			$response = $request->execute();
 			return $response;
-		} catch (wfCentralAPIException $e) {
+		}
+		catch (wfCentralAPIException $e) {
 			error_log($e);
+		}
+		catch (Exception $e) {
+			wfCentralAPIRequest::handleInternalCentralAPIError($e);
+		}
+		catch (Throwable $t) {
+			wfCentralAPIRequest::handleInternalCentralAPIError($t);
 		}
 		return false;
 	}
@@ -392,8 +455,15 @@ class wfCentral {
 		try {
 			$response = $request->execute();
 			return $response;
-		} catch (wfCentralAPIException $e) {
+		}
+		catch (wfCentralAPIException $e) {
 			error_log($e);
+		}
+		catch (Exception $e) {
+			wfCentralAPIRequest::handleInternalCentralAPIError($e);
+		}
+		catch (Throwable $t) {
+			wfCentralAPIRequest::handleInternalCentralAPIError($t);
 		}
 		return false;
 	}
@@ -414,8 +484,15 @@ class wfCentral {
 		try {
 			$response = $request->execute();
 			return $response;
-		} catch (wfCentralAPIException $e) {
+		}
+		catch (wfCentralAPIException $e) {
 			error_log($e);
+		}
+		catch (Exception $e) {
+			wfCentralAPIRequest::handleInternalCentralAPIError($e);
+		}
+		catch (Throwable $t) {
+			wfCentralAPIRequest::handleInternalCentralAPIError($t);
 		}
 		return false;
 	}
@@ -439,8 +516,15 @@ class wfCentral {
 		try {
 			$response = $request->execute();
 			return $response;
-		} catch (wfCentralAPIException $e) {
+		}
+		catch (wfCentralAPIException $e) {
 			error_log($e);
+		}
+		catch (Exception $e) {
+			wfCentralAPIRequest::handleInternalCentralAPIError($e);
+		}
+		catch (Throwable $t) {
+			wfCentralAPIRequest::handleInternalCentralAPIError($t);
 		}
 		return false;
 	}
@@ -456,8 +540,12 @@ class wfCentral {
 
 		try {
 			$request->execute();
-		} catch (Exception $e) {
+		}
+		catch (Exception $e) {
 			// We can safely ignore an error here for now.
+		}
+		catch (Throwable $t) {
+			wfCentralAPIRequest::handleInternalCentralAPIError($t);
 		}
 	}
 
@@ -479,6 +567,8 @@ class wfCentral {
 				$scan = array();
 			}
 		}
+		
+		wfScanner::shared()->flushSummaryItems();
 
 		$siteID = wfConfig::get('wordfenceCentralSiteID');
 		$running = wfScanner::shared()->isRunning();
@@ -494,9 +584,17 @@ class wfCentral {
 		));
 		try {
 			$response = $request->execute();
+			wfConfig::set('lastScanStageStatusUpdate', time(), wfConfig::DONT_AUTOLOAD);
 			return $response;
-		} catch (wfCentralAPIException $e) {
+		}
+		catch (wfCentralAPIException $e) {
 			error_log($e);
+		}
+		catch (Exception $e) {
+			wfCentralAPIRequest::handleInternalCentralAPIError($e);
+		}
+		catch (Throwable $t) {
+			wfCentralAPIRequest::handleInternalCentralAPIError($t);
 		}
 		return false;
 	}
@@ -506,34 +604,203 @@ class wfCentral {
 	 * @param array $data
 	 * @param callable|null $alertCallback
 	 */
-	public static function sendSecurityEvent($event, $data = array(), $alertCallback = null) {
+	public static function sendSecurityEvent($event, $data = array(), $alertCallback = null, $sendImmediately = false) {
+		return self::sendSecurityEvents(array(array('type' => $event, 'data' => $data, 'event_time' => microtime(true))), $alertCallback, $sendImmediately);
+	}
+	
+	public static function sendSecurityEvents($events, $alertCallback = null, $sendImmediately = false) {
+		if (empty($events)) {
+			return true;
+		}
+		
+		if (!$sendImmediately && defined('DISABLE_WP_CRON') && DISABLE_WP_CRON) {
+			$sendImmediately = true;
+		}
+		
 		$alerted = false;
 		if (!self::pluginAlertingDisabled() && is_callable($alertCallback)) {
 			call_user_func($alertCallback);
 			$alerted = true;
 		}
-
-		$siteID = wfConfig::get('wordfenceCentralSiteID');
-		$request = new wfCentralAuthenticatedAPIRequest('/site/' . $siteID . '/security-events', 'POST', array(
-			'data' => array(
-				array(
-					'type'       => 'security-event',
+		
+		if ($sendImmediately) {
+			$payload = array();
+			foreach ($events as $e) {
+				$payload[] = array(
+					'type' => 'security-event',
 					'attributes' => array(
-						'type'       => $event,
-						'data'       => $data,
-						'event_time' => microtime(true),
+						'type' => $e['type'],
+						'data' => $e['data'],
+						'event_time' => $e['event_time'],
 					),
-				),
-			),
-		));
-		try {
-			// Attempt to send the security event to Central.
-			$response = $request->execute();
-		} catch (wfCentralAPIException $e) {
-			// If we didn't alert previously, notify the user now in the event Central is down.
-			if (!$alerted && is_callable($alertCallback)) {
-				call_user_func($alertCallback);
+				);
 			}
+			
+			$siteID = wfConfig::get('wordfenceCentralSiteID');
+			$request = new wfCentralAuthenticatedAPIRequest('/site/' . $siteID . '/security-events', 'POST', array(
+				'data' => $payload,
+			));
+			try {
+				// Attempt to send the security events to Central.
+				$response = $request->execute();
+			}
+			catch (wfCentralAPIException $e) {
+				// If we didn't alert previously, notify the user now in the event Central is down.
+				if (!$alerted && is_callable($alertCallback)) {
+					call_user_func($alertCallback);
+				}
+				return false;
+			}
+			catch (Exception $e) {
+				wfCentralAPIRequest::handleInternalCentralAPIError($e);
+				return false;
+			}
+			catch (Throwable $t) {
+				wfCentralAPIRequest::handleInternalCentralAPIError($t);
+				return false;
+			}
+		}
+		else {
+			$wfdb = new wfDB();
+			$table_wfSecurityEvents = wfDB::networkTable('wfSecurityEvents');
+			$query = "INSERT INTO {$table_wfSecurityEvents} (`type`, `data`, `event_time`, `state`, `state_timestamp`) VALUES ";
+			$query .= implode(', ', array_fill(0, count($events), "('%s', '%s', %f, 'new', NOW())"));
+			
+			$immediateSendTypes = array('adminLogin',
+										'adminLoginNewLocation',
+										'nonAdminLogin',
+										'nonAdminLoginNewLocation',
+										'wordfenceDeactivated',
+										'wafDeactivated',
+										'autoUpdate');
+			$args = array();
+			foreach ($events as $e) {
+				$sendImmediately = $sendImmediately || in_array($e['type'], $immediateSendTypes);
+				$args[] = $e['type'];
+				$args[] = json_encode($e['data']);
+				$args[] = $e['event_time'];
+			}
+			$wfdb->queryWriteArray($query, $args);
+			
+			if (($ts = self::isScheduledSecurityEventCronOverdue()) || $sendImmediately) {
+				if ($ts) {
+					self::unscheduleSendPendingSecurityEvents($ts);
+				}
+				self::sendPendingSecurityEvents();
+			}
+			else {
+				self::scheduleSendPendingSecurityEvents();
+			}
+		}
+		
+		return true;
+	}
+	
+	public static function sendPendingSecurityEvents() {
+		$wfdb = new wfDB();
+		$table_wfSecurityEvents = wfDB::networkTable('wfSecurityEvents');
+		
+		$rawEvents = $wfdb->querySelect("SELECT * FROM {$table_wfSecurityEvents} WHERE `state` = 'new' ORDER BY `id` ASC LIMIT 100");
+
+		if (empty($rawEvents))
+			return;
+
+		$ids = array();
+		$events = array();
+		foreach ($rawEvents as $r) {
+			$ids[] = intval($r['id']);
+			$events[] = array(
+				'type' => $r['type'],
+				'data' => json_decode($r['data'], true),
+				'event_time' => $r['event_time'],
+			);
+		}
+		
+		$idParam = '(' . implode(', ', $ids) . ')';
+		$wfdb->queryWrite("UPDATE {$table_wfSecurityEvents} SET `state` = 'sending', `state_timestamp` = NOW() WHERE `id` IN {$idParam}");
+		if (self::sendSecurityEvents($events, null, true)) {
+			$wfdb->queryWrite("UPDATE {$table_wfSecurityEvents} SET `state` = 'sent', `state_timestamp` = NOW() WHERE `id` IN {$idParam}");
+			
+			self::checkForUnsentSecurityEvents();
+		}
+		else {
+			$wfdb->queryWrite("UPDATE {$table_wfSecurityEvents} SET `state` = 'new', `state_timestamp` = NOW() WHERE `id` IN {$idParam}");
+			self::scheduleSendPendingSecurityEvents();
+		}
+	}
+	
+	public static function scheduleSendPendingSecurityEvents() {
+		if (!defined('DONOTCACHEDB')) { define('DONOTCACHEDB', true); }
+		$notMainSite = is_multisite() && !is_main_site();
+		if ($notMainSite) {
+			global $current_site;
+			switch_to_blog($current_site->blog_id);
+		}
+		if (!wp_next_scheduled('wordfence_batchSendSecurityEvents')) {
+			wp_schedule_single_event(time() + 300, 'wordfence_batchSendSecurityEvents');
+		}
+		if ($notMainSite) {
+			restore_current_blog();
+		}
+	}
+	
+	public static function unscheduleSendPendingSecurityEvents($timestamp) {
+		if (!defined('DONOTCACHEDB')) { define('DONOTCACHEDB', true); }
+		$notMainSite = is_multisite() && !is_main_site();
+		if ($notMainSite) {
+			global $current_site;
+			switch_to_blog($current_site->blog_id);
+		}
+		if (!wp_next_scheduled('wordfence_batchSendSecurityEvents')) {
+			wp_unschedule_event($timestamp, 'wordfence_batchSendSecurityEvents');
+		}
+		if ($notMainSite) {
+			restore_current_blog();
+		}
+	}
+	
+	public static function isScheduledSecurityEventCronOverdue() {
+		if (!defined('DONOTCACHEDB')) { define('DONOTCACHEDB', true); }
+		$notMainSite = is_multisite() && !is_main_site();
+		if ($notMainSite) {
+			global $current_site;
+			switch_to_blog($current_site->blog_id);
+		}
+		
+		$overdue = false;
+		if ($ts = wp_next_scheduled('wordfence_batchSendSecurityEvents')) {
+			if ((time() - $ts) > 900) {
+				$overdue = $ts;
+			}
+		}
+		
+		if ($notMainSite) {
+			restore_current_blog();
+		}
+		
+		return $overdue;
+	}
+	
+	public static function checkForUnsentSecurityEvents() {
+		$wfdb = new wfDB();
+		$table_wfSecurityEvents = wfDB::networkTable('wfSecurityEvents');
+		$wfdb->queryWrite("UPDATE {$table_wfSecurityEvents} SET `state` = 'new', `state_timestamp` = NOW() WHERE `state` = 'sending' AND `state_timestamp` < DATE_SUB(NOW(), INTERVAL 30 MINUTE)");
+		
+		$count = $wfdb->querySingle("SELECT COUNT(*) AS cnt FROM {$table_wfSecurityEvents} WHERE `state` = 'new'");
+		if ($count) {
+			self::scheduleSendPendingSecurityEvents();
+		}
+	}
+	
+	public static function trimSecurityEvents() {
+		$wfdb = new wfDB();
+		$table_wfSecurityEvents = wfDB::networkTable('wfSecurityEvents');
+		$count = $wfdb->querySingle("SELECT COUNT(*) AS cnt FROM {$table_wfSecurityEvents}");
+		if ($count > 20000) {
+			$wfdb->truncate($table_wfSecurityEvents); //Similar behavior to other logged data, assume possible DoS so truncate
+		}
+		else if ($count > 1000) {
+			$wfdb->queryWrite("DELETE FROM {$table_wfSecurityEvents} ORDER BY id ASC LIMIT %d", $count - 1000);
 		}
 	}
 
@@ -554,5 +821,88 @@ class wfCentral {
 		}
 
 		return wfConfig::get('wordfenceCentralPluginAlertingDisabled', false);
+	}
+	
+	/**
+	 * Returns the site URL as associated with this site's Central linking.
+	 * 
+	 * The return value may be:
+	 *  - null if there is no `site-url` key present in the stored Central data
+	 *  - a string if there is a `site-url` value
+	 * 
+	 * @return string|null
+	 */
+	public static function getCentralSiteUrl() {
+		$siteData = json_decode(wfConfig::get('wordfenceCentralSiteData', '[]'), true);
+		return (is_array($siteData) && array_key_exists('site-url', $siteData)) ? (string) $siteData['site-url'] : null;
+	}
+	
+	/**
+	 * Populates the Central record's site URL if missing locally.
+	 * 
+	 * @return array|bool
+	 */
+	public static function populateCentralSiteUrl() {
+		$siteData = json_decode(wfConfig::get('wordfenceCentralSiteData', '[]'), true);
+		if (!is_array($siteData) || !array_key_exists('site-url', $siteData)) {
+			try {
+				$request = new wfCentralAuthenticatedAPIRequest('/site/' . wfConfig::get('wordfenceCentralSiteID'), 'GET', array(), array('timeout' => 2));
+				$response = $request->execute();
+				if ($response->isError()) {
+					return $response->returnErrorArray();
+				}
+				$responseData = $response->getJSONBody();
+				if (is_array($responseData) && isset($responseData['data']['attributes'])) {
+					$siteData = $responseData['data']['attributes'];
+					wfConfig::set('wordfenceCentralSiteData', json_encode($siteData));
+				}
+			}
+			catch (wfCentralAPIException $e) {
+				return false;
+			}
+			catch (Exception $e) {
+				wfCentralAPIRequest::handleInternalCentralAPIError($e);
+				return false;
+			}
+			catch (Throwable $t) {
+				wfCentralAPIRequest::handleInternalCentralAPIError($t);
+				return false;
+			}
+		}
+		return true;
+	}
+	
+	public static function isCentralSiteUrlMismatched() {
+		if (!wfCentral::_isConnected()) {
+			return false;
+		}
+		
+		$centralSiteUrl = self::getCentralSiteUrl();
+		if (!is_string($centralSiteUrl)) {
+			return false;
+		}
+		
+		$localSiteUrl = get_site_url();
+		return !wfUtils::compareSiteUrls($centralSiteUrl, $localSiteUrl, array('www'));
+	}
+	
+	public static function mismatchedCentralUrlNotice() {
+		echo '<div id="wordfenceMismatchedCentralUrlNotice" class="fade notice notice-warning"><p><strong>' .
+			__('Your site is currently linked to Wordfence Central under a different site URL.', 'wordfence')
+			. '</strong> '
+			. __('This may cause duplicated scan issues if both sites are currently active and reporting and is generally caused by duplicating the database from one site to another (e.g., from a production site to staging). We recommend disconnecting this site only, which will leave the matching site still connected.', 'wordfence')
+			. '</p><p>'
+			. __('If this is a single site with multiple domains or subdomains, you can dismiss this message.', 'wordfence')
+			. '</p><p>'
+			. '<a class="wf-btn wf-btn-primary wf-btn-sm wf-dismiss-link" href="#" onclick="wordfenceExt.centralUrlMismatchChoice(\'local\'); return false;" role="button">' .
+			__('Disconnect This Site', 'wordfence')
+			. '</a> '
+			. '<a class="wf-btn wf-btn-default wf-btn-sm wf-dismiss-link" href="#" onclick="wordfenceExt.centralUrlMismatchChoice(\'global\'); return false;" role="button">' .
+			__('Disconnect All', 'wordfence')
+			. '</a> '
+			. '<a class="wf-btn wf-btn-default wf-btn-sm wf-dismiss-link" href="#" onclick="wordfenceExt.centralUrlMismatchChoice(\'dismiss\'); return false;" role="button">' .
+			__('Dismiss', 'wordfence')
+			. '</a> '
+			. '<a class="wfhelp" target="_blank" rel="noopener noreferrer" href="' . wfSupportController::esc_supportURL(wfSupportController::ITEM_DIAGNOSTICS_REMOVE_CENTRAL_DATA) . '"><span class="screen-reader-text"> (' . esc_html__('opens in new tab', 'wordfence') . ')</span></a></p></div>';
 	}
 }

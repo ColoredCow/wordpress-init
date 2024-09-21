@@ -35,7 +35,7 @@ if ( ! defined( 'WPINC' ) ) {
 		</button>
 	</div>
 
-	<div class="sui-box-body sui-flatten sui-content-center sui-spacing-top--20">
+	<div class="sui-box-body sui-flatten sui-content-center sui-spacing-top--20 sui-spacing-bottom--50">
 		<p class="sui-description" id="smush-restore-images-dialog-description">
 			<# if ( 'start' === data.slide ) { #>
 			<?php esc_html_e( 'Are you sure you want to restore all image thumbnails to their original, non-optimized states?', 'wp-smushit' ); ?>
@@ -80,18 +80,28 @@ if ( ! defined( 'WPINC' ) ) {
 			<# } else if ( 'finish' === data.slide ) { #>
 				<# if ( 0 === data.errors.length ) { #>
 				<div class="sui-notice sui-notice-success" style="text-align: left">
-					<p>{{{ data.success }}}
-						<?php esc_html_e( 'images were successfully restored.', 'wp-smushit' ); ?>
-					</p>
+					<div class="sui-notice-content">
+						<div class="sui-notice-message">
+							<i class="sui-notice-icon sui-icon-info sui-md" aria-hidden="true"></i>
+							<p>{{{ data.success }}}
+								<?php esc_html_e( 'images were successfully restored.', 'wp-smushit' ); ?>
+							</p>
+						</div>
+					</div>
 				</div>
 				<button class="sui-button" onclick="window.location.reload()" data-modal-close="" type="button">
 					<?php esc_html_e( 'Finish', 'wp-smushit' ); ?>
 				</button>
 				<# } else { #>
 				<div class="sui-notice sui-notice-warning" style="text-align: left">
-					<p>{{{ data.success }}}/{{{ data.total }}}
-						<?php esc_html_e( 'images were successfully restored but some were unrecoverable. You can try again, or re-upload these images.', 'wp-smushit' ); ?>
-					</p>
+					<div class="sui-notice-content">
+						<div class="sui-notice-message">
+							<i class="sui-notice-icon sui-icon-info sui-md" aria-hidden="true"></i>
+							<p>{{{ data.success }}}/{{{ data.total }}}
+								<?php esc_html_e( 'images were successfully restored but some were unrecoverable. You can try again, or re-upload these images.', 'wp-smushit' ); ?>
+							</p>
+						</div>
+					</div>
 				</div>
 				<# } #>
 			<# } #>
@@ -127,6 +137,7 @@ if ( ! defined( 'WPINC' ) ) {
 	<p class="sui-description sui-margin-left sui-margin-right">
 		<?php
 		printf(
+			/* translators: 1: Open a link <a>, 2: Close the link </a> */
 			esc_html__( "Note: You can find all the images which couldn't be restored (still smushed) in your %1\$sMedia Library%2\$s.", 'wp-smushit' ),
 			'<a href="' . esc_url( admin_url( 'upload.php' ) ) . '">',
 			'</a>'
@@ -148,15 +159,6 @@ if ( ! defined( 'WPINC' ) ) {
 		</div>
 	</div>
 	<# } #>
-
-	<?php if ( ! apply_filters( 'wpmudev_branding_hide_branding', false ) ) : ?>
-		<div class="sui-box-footer sui-flatten sui-spacing-bottom--0">
-			<img class="sui-image sui-image-center"
-				src="<?php echo esc_url( WP_SMUSH_URL . 'app/assets/images/onboarding/graphic-onboarding.png' ); ?>"
-				srcset="<?php echo esc_url( WP_SMUSH_URL . 'app/assets/images/onboarding/graphic-onboarding@2x.png' ); ?> 2x"
-				alt="<?php esc_attr_e( 'WP Smush', 'wp-smushit' ); ?>">
-		</div>
-	<?php endif; ?>
 </script>
 
 

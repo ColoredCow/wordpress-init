@@ -74,6 +74,10 @@ class Diff_SequenceMatcher
 		'ignoreWhitespace' => false,
 		'ignoreCase' => false
 	);
+	
+	private $matchingBlocks = null;
+	private $opCodes = null;
+	private $fullBCount = null;
 
 	/**
 	 * The constructor. With the sequences being passed, they'll be set for the
@@ -84,7 +88,7 @@ class Diff_SequenceMatcher
 	 * @param string|array $b A string or array containing the lines to compare.
 	 * @param string|array $junkCallback Either an array or string that references a callback function (if there is one) to determine 'junk' characters.
 	 */
-	public function __construct($a, $b, $junkCallback=null, $options)
+	public function __construct($a, $b, $junkCallback=null, $options=array())
 	{
 		$this->a = null;
 		$this->b = null;
@@ -679,7 +683,7 @@ class Diff_SequenceMatcher
 			}
 		}
 
-		if(count($a) == $count($b)) {
+		if(count($a) == count($b)) {
 			return 0;
 		}
 		else if(count($a) < count($b)) {

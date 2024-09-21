@@ -28,14 +28,17 @@ class wfRESTAuthenticationController {
 		register_rest_route('wordfence/v1', '/authenticate', array(
 			'methods'  => WP_REST_Server::READABLE,
 			'callback' => array($this, 'nonce'),
+			'permission_callback' => '__return_true',
 		));
 		register_rest_route('wordfence/v1', '/authenticate', array(
 			'methods'  => WP_REST_Server::CREATABLE,
 			'callback' => array($this, 'authenticate'),
+			'permission_callback' => '__return_true',
 		));
 		register_rest_route('wordfence/v1', '/authenticate-premium', array(
 			'methods'  => WP_REST_Server::CREATABLE,
 			'callback' => array($this, 'authenticatePremium'),
+			'permission_callback' => '__return_true',
 		));
 	}
 
@@ -56,7 +59,7 @@ class wfRESTAuthenticationController {
 	 * @return mixed|WP_REST_Response
 	 */
 	public function authenticate($request) {
-		require_once(WORDFENCE_PATH . '/crypto/vendor/paragonie/sodium_compat/autoload-fast.php');
+		require_once(WORDFENCE_PATH . '/lib/sodium_compat_fast.php');
 
 		$siteID = wfConfig::get('wordfenceCentralSiteID');
 		if (!$siteID) {
@@ -117,7 +120,7 @@ class wfRESTAuthenticationController {
 	 * @return mixed|WP_REST_Response
 	 */
 	public function authenticatePremium($request) {
-		require_once(WORDFENCE_PATH . '/crypto/vendor/paragonie/sodium_compat/autoload-fast.php');
+		require_once(WORDFENCE_PATH . '/lib/sodium_compat_fast.php');
 
 		// verify signature.
 		$data = $request->get_param('data');

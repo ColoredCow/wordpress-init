@@ -25,6 +25,8 @@ class wfSupportController {
 	
 	const ITEM_GDPR = 'gdpr';
 	const ITEM_GDPR_DPA = 'gdpr-dpa';
+
+	const ITEM_GENERAL_REMOTE_IP_LOOKUP = 'general-remote-ip-lookup';
 	
 	const ITEM_DASHBOARD = 'dashboard';
 	const ITEM_DASHBOARD_STATUS_FIREWALL = 'dashboard-status-firewall';
@@ -73,6 +75,7 @@ class wfSupportController {
 	const ITEM_FIREWALL_WAF_OPTION_MASK_LOGIN_ERRORS = 'firewall-waf-option-mask-login-errors';
 	const ITEM_FIREWALL_WAF_OPTION_PREVENT_ADMIN_REGISTRATION = 'firewall-waf-option-prevent-admin-registration';
 	const ITEM_FIREWALL_WAF_OPTION_PREVENT_AUTHOR_SCAN = 'firewall-waf-option-prevent-author-scan';
+	const ITEM_FIREWALL_WAF_OPTION_DISABLE_APPLICATION_PASSWORDS = 'firewall-waf-option-disable-application-passwords';
 	const ITEM_FIREWALL_WAF_OPTION_BLOCK_BAD_POST = 'firewall-waf-option-block-bad-post';
 	const ITEM_FIREWALL_WAF_OPTION_CUSTOM_BLOCK_TEXT = 'firewall-waf-option-custom-block-text';
 	const ITEM_FIREWALL_WAF_OPTION_CHECK_PASSWORD = 'firewall-waf-option-check-password';
@@ -98,6 +101,8 @@ class wfSupportController {
 	const ITEM_FIREWALL_BLOCKING_BYPASS_COOKIE = 'firewall-blocking-bypass-cookie';
 	const ITEM_FIREWALL_BLOCKING_BYPASS_REDIRECT = 'firewall-blocking-bypass-redirect';
 	const ITEM_FIREWALL_BLOCKING_FULL_SITE = 'firewall-blocking-full-site';
+
+	const ITEM_FIREWALL_REMOVE_OPTIMIZATION = 'firewall-remove-optimization';
 	
 	const ITEM_SCAN = 'scan';
 	const ITEM_SCAN_STATUS_OVERALL = 'scan-status-overall';
@@ -134,6 +139,8 @@ class wfSupportController {
 	const ITEM_SCAN_OPTION_STAGE_TIME_LIMIT = 'scan-option-stage-time-limit';
 	const ITEM_SCAN_OPTION_EXCLUDE_PATTERNS = 'scan-option-exclude-patterns';
 	const ITEM_SCAN_OPTION_CUSTOM_MALWARE_SIGNATURES = 'scan-option-custom-malware-signatures';
+	const ITEM_SCAN_OPTION_MAX_RESUME_ATTEMPTS = 'scan-option-max-resume-attempts';
+	const ITEM_SCAN_OPTION_USE_ONLY_IPV4 = 'scan-option-use-only-ipv4';
 	const ITEM_SCAN_TIME_LIMIT = 'scan-time-limit';
 	const ITEM_SCAN_FAILS = 'scan-fails';
 	const ITEM_SCAN_FAILED_START = 'scan-failed-start';
@@ -142,28 +149,39 @@ class wfSupportController {
 	const ITEM_SCAN_RESULT_PUBLIC_CONFIG = 'scan-result-public-config';
 	const ITEM_SCAN_RESULT_PLUGIN_ABANDONED = 'scan-result-plugin-abandoned';
 	const ITEM_SCAN_RESULT_PLUGIN_REMOVED = 'scan-result-plugin-removed';
+	const ITEM_SCAN_RESULT_UPDATE_CHECK_FAILED = 'scan-result-update-check-failed';
 	const ITEM_SCAN_RESULT_OPTION_MALWARE_URL = 'scan-result-option-malware-url';
 	const ITEM_SCAN_RESULT_GEOIP_UPDATE = 'scan-result-geoip-update';
 	const ITEM_SCAN_RESULT_WAF_DISABLED = 'scan-result-waf-disabled';
 	const ITEM_SCAN_RESULT_UNKNOWN_FILE_CORE = 'scan-result-unknown-file-in-wordpress-core';
 	const ITEM_SCAN_RESULT_SKIPPED_PATHS = 'scan-result-skipped-paths';
-	
+	const ITEM_SCAN_RESULT_REPAIR_MODIFIED_FILES = 'scan-result-repair-modified-files';
+	const ITEM_SCAN_RESULT_MODIFIED_PLUGIN = 'scan-result-modified-plugin';
+	const ITEM_SCAN_RESULT_MODIFIED_THEME = 'scan-result-modified-theme';
+	const ITEM_SCAN_RESULT_PLUGIN_VULNERABLE = 'scan-result-plugin-vulnerable';
+	const ITEM_SCAN_RESULT_CORE_UPGRADE = 'scan-result-core-upgrade';
+
 	const ITEM_TOOLS_TWO_FACTOR = 'tools-two-factor';
 	const ITEM_TOOLS_LIVE_TRAFFIC = 'tools-live-traffic';
 	const ITEM_TOOLS_LIVE_TRAFFIC_OPTION_ENABLE = 'tools-live-traffic-option-enable';
 	const ITEM_TOOLS_WHOIS_LOOKUP = 'tools-whois-lookup';
 	const ITEM_TOOLS_IMPORT_EXPORT = 'tools-import-export';
 	
+	const ITEM_DIAGNOSTICS = 'diagnostics';
 	const ITEM_DIAGNOSTICS_SYSTEM_CONFIGURATION = 'diagnostics-system-configuration';
 	const ITEM_DIAGNOSTICS_TEST_MEMORY = 'diagnostics-test-memory';
 	const ITEM_DIAGNOSTICS_TEST_EMAIL = 'diagnostics-test-email';
 	const ITEM_DIAGNOSTICS_TEST_ACTIVITY_REPORT = 'diagnostics-test-activity-report';
+	const ITEM_DIAGNOSTICS_REMOVE_CENTRAL_DATA = 'diagnostics-remove-central-data';
 	const ITEM_DIAGNOSTICS_OPTION_DEBUGGING_MODE = 'diagnostics-option-debugging-mode';
 	const ITEM_DIAGNOSTICS_OPTION_REMOTE_SCANS = 'diagnostics-option-remote-scans';
 	const ITEM_DIAGNOSTICS_OPTION_SSL_VERIFICATION = 'diagnostics-option-ssl-verification';
 	const ITEM_DIAGNOSTICS_OPTION_DISABLE_PHP_INPUT = 'diagnostics-option-disable-php-input';
 	const ITEM_DIAGNOSTICS_OPTION_BETA_TDF = 'diagnostics-option-beta-tdf';
-	
+	const ITEM_DIAGNOSTICS_OPTION_WORDFENCE_TRANSLATIONS = 'diagnostics-option-wordfence-translations';
+	const ITEM_DIAGNOSTICS_IPV6 = 'diagnostics-ipv6';
+	const ITEM_DIAGNOSTICS_CLOUDFLARE_BLOCK = 'compatibility-cloudflare';
+
 	const ITEM_MODULE_LOGIN_SECURITY = 'module-login-security';
 	const ITEM_MODULE_LOGIN_SECURITY_2FA = 'module-login-security-2fa';
 	const ITEM_MODULE_LOGIN_SECURITY_CAPTCHA = 'module-login-security-captcha';
@@ -202,6 +220,8 @@ class wfSupportController {
 				
 			case self::ITEM_GDPR:
 			case self::ITEM_GDPR_DPA:
+
+			case self::ITEM_GENERAL_REMOTE_IP_LOOKUP:
 				
 			case self::ITEM_DASHBOARD:
 			case self::ITEM_DASHBOARD_STATUS_FIREWALL:
@@ -250,6 +270,7 @@ class wfSupportController {
 			case self::ITEM_FIREWALL_WAF_OPTION_MASK_LOGIN_ERRORS:
 			case self::ITEM_FIREWALL_WAF_OPTION_PREVENT_ADMIN_REGISTRATION:
 			case self::ITEM_FIREWALL_WAF_OPTION_PREVENT_AUTHOR_SCAN:
+			case self::ITEM_FIREWALL_WAF_OPTION_DISABLE_APPLICATION_PASSWORDS:
 			case self::ITEM_FIREWALL_WAF_OPTION_BLOCK_BAD_POST:
 			case self::ITEM_FIREWALL_WAF_OPTION_CUSTOM_BLOCK_TEXT:
 			case self::ITEM_FIREWALL_WAF_OPTION_CHECK_PASSWORD:
@@ -275,6 +296,8 @@ class wfSupportController {
 			case self::ITEM_FIREWALL_BLOCKING_BYPASS_COOKIE:
 			case self::ITEM_FIREWALL_BLOCKING_BYPASS_REDIRECT:
 			case self::ITEM_FIREWALL_BLOCKING_FULL_SITE:
+
+			case self::ITEM_FIREWALL_REMOVE_OPTIMIZATION:
 				
 			case self::ITEM_SCAN:
 			case self::ITEM_SCAN_STATUS_OVERALL:
@@ -316,31 +339,44 @@ class wfSupportController {
 			case self::ITEM_SCAN_OPTION_STAGE_TIME_LIMIT:
 			case self::ITEM_SCAN_OPTION_EXCLUDE_PATTERNS:
 			case self::ITEM_SCAN_OPTION_CUSTOM_MALWARE_SIGNATURES:
+			case self::ITEM_SCAN_OPTION_MAX_RESUME_ATTEMPTS:
+			case self::ITEM_SCAN_OPTION_USE_ONLY_IPV4:
 			case self::ITEM_SCAN_RESULT_PUBLIC_CONFIG:
 			case self::ITEM_SCAN_RESULT_PLUGIN_ABANDONED:
 			case self::ITEM_SCAN_RESULT_PLUGIN_REMOVED:
+			case self::ITEM_SCAN_RESULT_UPDATE_CHECK_FAILED:
 			case self::ITEM_SCAN_RESULT_OPTION_MALWARE_URL:
 			case self::ITEM_SCAN_RESULT_GEOIP_UPDATE:
 			case self::ITEM_SCAN_RESULT_WAF_DISABLED:
 			case self::ITEM_SCAN_RESULT_UNKNOWN_FILE_CORE:
 			case self::ITEM_SCAN_RESULT_SKIPPED_PATHS:
-				
+			case self::ITEM_SCAN_RESULT_REPAIR_MODIFIED_FILES:
+			case self::ITEM_SCAN_RESULT_MODIFIED_PLUGIN:
+			case self::ITEM_SCAN_RESULT_MODIFIED_THEME:
+			case self::ITEM_SCAN_RESULT_PLUGIN_VULNERABLE:
+			case self::ITEM_SCAN_RESULT_CORE_UPGRADE:
+
 			case self::ITEM_TOOLS_TWO_FACTOR:
 			case self::ITEM_TOOLS_LIVE_TRAFFIC:
 			case self::ITEM_TOOLS_LIVE_TRAFFIC_OPTION_ENABLE:
 			case self::ITEM_TOOLS_WHOIS_LOOKUP:
 			case self::ITEM_TOOLS_IMPORT_EXPORT:
 				
+			case self::ITEM_DIAGNOSTICS:
 			case self::ITEM_DIAGNOSTICS_SYSTEM_CONFIGURATION:
 			case self::ITEM_DIAGNOSTICS_TEST_MEMORY:
 			case self::ITEM_DIAGNOSTICS_TEST_EMAIL:
 			case self::ITEM_DIAGNOSTICS_TEST_ACTIVITY_REPORT:
+			case self::ITEM_DIAGNOSTICS_REMOVE_CENTRAL_DATA:
 			case self::ITEM_DIAGNOSTICS_OPTION_DEBUGGING_MODE:
 			case self::ITEM_DIAGNOSTICS_OPTION_REMOTE_SCANS:
 			case self::ITEM_DIAGNOSTICS_OPTION_SSL_VERIFICATION:
 			case self::ITEM_DIAGNOSTICS_OPTION_DISABLE_PHP_INPUT:
 			case self::ITEM_DIAGNOSTICS_OPTION_BETA_TDF:
-				
+			case self::ITEM_DIAGNOSTICS_OPTION_WORDFENCE_TRANSLATIONS:
+			case self::ITEM_DIAGNOSTICS_IPV6:
+			case self::ITEM_DIAGNOSTICS_CLOUDFLARE_BLOCK:
+
 			case self::ITEM_MODULE_LOGIN_SECURITY:
 			case self::ITEM_MODULE_LOGIN_SECURITY_2FA:
 			case self::ITEM_MODULE_LOGIN_SECURITY_CAPTCHA:
@@ -348,5 +384,57 @@ class wfSupportController {
 		}
 		
 		return '';
+	}
+	
+	public static function shouldShowSatisfactionPrompt() {
+		//Don't show if overridden
+		if (!wfConfig::getBool('satisfactionPromptOverride')) {
+			return false;
+		}
+		
+		//Only show on our pages
+		if (!isset($_REQUEST['page'])) {
+			return false;
+		}
+		
+		if (!preg_match('/^Wordfence/', $_REQUEST['page'])) {
+			return false;
+		}
+		
+		//Only show until dismissed
+		if (wfConfig::get('satisfactionPromptDismissed') > 0) {
+			return false;
+		}
+		
+		//Only show to users installing after the release date of the version this was introduced
+		if (WORDFENCE_FEEDBACK_EPOCH > wfConfig::get('satisfactionPromptInstallDate')) {
+			return false;
+		}
+		
+		//Don't show for at least 7 days post-install
+		if ((time() - wfConfig::get('satisfactionPromptInstallDate')) < 86400 * 7) {
+			return false;
+		}
+		
+		return true;
+	}
+	
+	public static function satisfactionPromptNotice() {
+?>
+		<div id="wordfenceSatisfactionPrompt" class="fade notice notice-info">
+			<p id="wordfenceSatisfactionPrompt-initial"><strong><?php printf(__('Are you enjoying using Wordfence Security?', 'wordfence')); ?></strong>&nbsp;&nbsp;&nbsp;<a href="#" onclick="WFAD.wordfenceSatisfactionChoice('yes'); return false;" class="wf-btn wf-btn-default wf-btn-sm" role="button"><?php printf(__('Yes', 'wordfence')); ?></a>&nbsp;&nbsp;&nbsp;<a href="#" onclick="WFAD.wordfenceSatisfactionChoice('no'); return false;" class="wf-btn wf-btn-default wf-btn-sm" role="button"><?php printf(__('No', 'wordfence')); ?></a></p>
+			<div id="wordfenceSatisfactionPrompt-yes" style="display: none;">
+				<p><?php printf(__('Please consider leaving us a 5-star review on wordpress.org. Your review helps other members of the WordPress community find plugins that fit their needs.', 'wordfence')); ?></p>
+				<p><a href="https://wordpress.org/support/plugin/wordfence/reviews/" class="wf-btn wf-btn-default wf-btn-sm" role="button" target="_blank" rel="noopener noreferrer"><?php printf(__('Leave Review', 'wordfence')); ?></a></p>
+			</div>
+			<div id="wordfenceSatisfactionPrompt-no" style="display: none;">
+				<p><?php printf(__('What can we do to improve Wordfence Security?', 'wordfence')); ?></p>
+				<p><textarea rows="6" cols="50" id="wordfenceSatisfactionPrompt-feedback"></textarea></p>
+				<p><a href="#" onclick="WFAD.wordfenceSatisfactionChoice('feedback'); return false;" class="wf-btn wf-btn-default wf-btn-sm" role="button" target="_blank" rel="noopener noreferrer"><?php printf(__('Submit Feedback', 'wordfence')); ?></a>&nbsp;&nbsp;&nbsp;<a href="#" onclick="WFAD.wordfenceSatisfactionChoice('dismiss'); return false;" class="wf-btn wf-btn-default wf-btn-sm" role="button"><?php printf(__('Dismiss', 'wordfence')); ?></a></p>
+			</div>
+			<p id="wordfenceSatisfactionPrompt-complete" style="display: none;"><?php printf(__('Thank you for providing your feedback on Wordfence Security', 'wordfence')); ?></p>
+			<button type="button" class="notice-dismiss" onclick="WFAD.wordfenceSatisfactionChoice('dismiss'); return false;"><span class="screen-reader-text">Dismiss this notice.</span></button>
+		</div>
+<?php
 	}
 }

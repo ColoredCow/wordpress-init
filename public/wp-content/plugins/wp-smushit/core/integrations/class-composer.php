@@ -12,6 +12,7 @@
 
 namespace Smush\Core\Integrations;
 
+use Smush\Core\CDN\CDN_Helper;
 use WP_Smush;
 
 if ( ! defined( 'WPINC' ) ) {
@@ -41,11 +42,11 @@ class Composer extends Abstract_Integration {
 		// Hook at the end of setting row to output a error div.
 		add_action( 'smush_setting_column_right_inside', array( $this, 'additional_notice' ) );
 
-		// Add beta tag.
-		add_action( 'smush_setting_column_tag', array( $this, 'add_beta_tag' ) );
-
 		if ( $this->settings->get( 'js_builder' ) ) {
 			add_filter( 'image_make_intermediate_size', array( $this, 'process_image_resize' ) );
+
+			// CDN link image handler for ajax based loading.
+			add_filter( 'wp_get_attachment_image_src', array( $this, 'cdn_attachment_image_src' ) );
 		}
 	}
 
@@ -81,38 +82,20 @@ class Composer extends Abstract_Integration {
 	 * @param string $name  Setting name.
 	 */
 	public function additional_notice( $name ) {
-		if ( 'js_builder' === $name && ! $this->enabled ) {
+		if ( $this->module === $name && ! $this->enabled ) {
 			?>
 			<div class="sui-toggle-content">
-				<div class="sui-notice sui-notice-sm">
-					<p>
-						<?php esc_html_e( 'To use this feature you need be using WPBakery Page Builder.', 'wp-smushit' ); ?>
-					</p>
+				<div class="sui-notice">
+					<div class="sui-notice-content">
+						<div class="sui-notice-message">
+							<i class="sui-notice-icon sui-icon-info" aria-hidden="true"></i>
+							<p><?php esc_html_e( 'To use this feature you need be using WPBakery Page Builder.', 'wp-smushit' ); ?></p>
+						</div>
+					</div>
 				</div>
 			</div>
 			<?php
 		}
-	}
-
-	/**
-	 * Add a beta tag next to the setting title.
-	 *
-	 * @param string $setting_key  Setting key name.
-	 *
-	 * @since 2.9.0
-	 */
-	public function add_beta_tag( $setting_key ) {
-		// Return if not Gutenberg integration.
-		if ( $this->module !== $setting_key ) {
-			return;
-		}
-
-		$tooltip_text = __( 'This feature is likely to work without issue, however the integration is in beta stage and some issues are still present.', 'wp-smushit' );
-		?>
-		<span class="sui-tag sui-tag-beta sui-tooltip sui-tooltip-constrained" data-tooltip="<?php echo esc_attr( $tooltip_text ); ?>">
-			<?php esc_html_e( 'Beta', 'wp-smushit' ); ?>
-		</span>
-		<?php
 	}
 
 	/**************************************
@@ -133,7 +116,7 @@ class Composer extends Abstract_Integration {
 	 */
 	public function process_image_resize( $image_src ) {
 		$vc_editable = filter_input( INPUT_GET, 'vc_editable', FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE );
-		$vc_action   = filter_input( INPUT_POST, 'action', FILTER_SANITIZE_STRING );
+		$vc_action   = filter_input( INPUT_POST, 'action', FILTER_SANITIZE_SPECIAL_CHARS );
 
 		global $pagename, $vc_manager;
 
@@ -164,18 +147,54 @@ class Composer extends Abstract_Integration {
 		$attachment_id = attachment_url_to_postid( $image_url );
 
 		if ( ! wp_attachment_is_image( $attachment_id ) ) {
-			return $image_src;
+			return $vc_image;
 		}
 
 		$image = image_get_intermediate_size( $attachment_id, array( $size[1], $size[2] ) );
 
 		if ( $image ) {
-			return $image_src;
+			return $vc_image;
 		}
 
 		// Smush image. TODO: should we update the stats?
 		WP_Smush::get_instance()->core()->mod->smush->do_smushit( $vc_image );
-		return $image_src;
+
+		return $vc_image;
+	}
+
+	/**
+	 * Replace the image src with cdn link for all the Ajax requests.
+	 *
+	 * @since 3.9.10
+	 *
+	 * @see SMUSH-206
+	 *
+	 * @param array|false $image {
+	 *     Array of image data, or boolean false if no image is available.
+	 *
+	 *     @type string $0 Image source URL.
+	 *     @type int    $1 Image width in pixels.
+	 *     @type int    $2 Image height in pixels.
+	 *     @type bool   $3 Whether the image is a resized image.
+	 * }
+	 *
+	 * @return mixed
+	 */
+	public function cdn_attachment_image_src( $image ) {
+		if ( ! wp_doing_ajax() ) {
+			return $image;
+		}
+
+		$cdn_helper = CDN_Helper::get_instance();
+		if ( ! $cdn_helper->is_cdn_active() ) {
+			return $image;
+		}
+
+		if ( is_array( $image ) && ! empty( $image[0] ) ) {
+			$image[0] = $cdn_helper->generate_cdn_url( $image[0] );
+		}
+
+		return $image;
 	}
 
 	/**************************************
@@ -187,13 +206,13 @@ class Composer extends Abstract_Integration {
 	 * Should only be active when WPBakery Page Builder is installed.
 	 *
 	 * @since 3.2.1
+	 *
+	 * @see https://kb.wpbakery.com/docs/inner-api/vc_disable_frontend
 	 */
 	private function check_for_js_builder() {
-		if ( ! function_exists( 'is_plugin_active' ) ) {
-			include_once ABSPATH . 'wp-admin/includes/plugin.php';
-		}
-
-		$this->enabled = defined( 'WPB_VC_VERSION' ) && is_plugin_active( 'js_composer/js_composer.php' );
+		// This function exists since WPBakery 4.0 (02.03.2014) and is listed
+		// on their API docs. It should be stable enough to rely on it.
+		$this->enabled = defined( 'WPB_VC_VERSION' ) && function_exists( 'vc_disable_frontend' );
 	}
 
 }

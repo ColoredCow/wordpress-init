@@ -35,5 +35,11 @@
                 "type:wordpress-theme"
             ]
         }
+    },
+    "config": {
+        "allow-plugins": {
+            "johnpbloch/wordpress-core-installer": true,
+            "composer/installers": true
+        }
     }
 }

@@ -18,6 +18,38 @@ if ( ! defined( 'WPINC' ) ) {
  * Class Upgrade
  */
 class Upgrade extends Abstract_Page {
+	/**
+	 * Parent slug.
+	 */
+	private $parent_slug;
+
+	public function __construct( $slug, $title, $parent_slug = false, $is_upsell_link = false ) {
+		parent::__construct( $slug, $title, $parent_slug, false, $is_upsell_link );
+
+		if ( $is_upsell_link ) {
+			$this->parent_slug = $parent_slug;
+			add_action( 'admin_head', array( $this, 'adjust_upsell_submenu' ) );
+		}
+	}
+
+	public function adjust_upsell_submenu() {
+		$submenu_selector = "#toplevel_page_{$this->parent_slug} li:last-child a";
+		?>
+		<style>
+			<?php echo esc_html( $submenu_selector ); ?> {
+				background-color: #8d00b1 !important;
+				color: #fff !important;
+				font-weight: 500 !important;
+				white-space: nowrap;
+			}
+		</style>
+		<script>
+			window.addEventListener( 'load', function() {
+				document.querySelector( '<?php echo esc_html( $submenu_selector ); ?>' ).target="_blank";
+			} );
+		</script>
+		<?php
+	}
 
 	/**
 	 * Render the page.
@@ -31,13 +63,20 @@ class Upgrade extends Abstract_Page {
 	}
 
 	/**
+	 * Render inner content.
+	 */
+	public function render_inner_content() {
+		$this->view( 'smush-upgrade-page' );
+	}
+
+	/**
 	 * On load actions.
 	 */
 	public function on_load() {
 		add_action(
 			'admin_enqueue_scripts',
 			function() {
-				wp_enqueue_script( 'smush-sui', WP_SMUSH_URL . 'app/assets/js/smush-sui.min.js', array( 'jquery' ), WP_SHARED_UI_VERSION, true );
+				wp_enqueue_script( 'smush-sui', WP_SMUSH_URL . 'app/assets/js/smush-sui.min.js', array( 'jquery', 'clipboard' ), WP_SHARED_UI_VERSION, true );
 				wp_enqueue_script( 'smush-wistia', '//fast.wistia.com/assets/external/E-v1.js', array(), WP_SMUSH_VERSION, true );
 				wp_enqueue_style( 'smush-admin', WP_SMUSH_URL . 'app/assets/css/smush-admin.min.css', array(), WP_SMUSH_VERSION );
 			}

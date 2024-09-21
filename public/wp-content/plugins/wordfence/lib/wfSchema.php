@@ -18,6 +18,15 @@ class wfSchema {
 	);
 	
 	private static $tables = array(
+"wfSecurityEvents" => "(
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `type` varchar(255) NOT NULL DEFAULT '',
+  `data` text NOT NULL,
+  `event_time` double(14,4) NOT NULL,
+  `state` enum('new','sending','sent') NOT NULL DEFAULT 'new',
+  `state_timestamp` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  PRIMARY KEY (`id`)
+) DEFAULT CHARSET=utf8",
 "wfBlocks7" => "(
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   `type` int(10) unsigned NOT NULL DEFAULT '0',
@@ -172,7 +181,7 @@ class wfSchema {
   `filenameMD5` binary(16) NOT NULL,
   `filename` varchar(1000) NOT NULL,
   `knownFile` tinyint(3) unsigned NOT NULL,
-  `oldMD5` binary(16) NOT NULL,
+  `oldMD5` binary(16) NOT NULL DEFAULT '',
   `newMD5` binary(16) NOT NULL,
   `SHAC` binary(32) NOT NULL DEFAULT '\\0\\0\\0\\0\\0\\0\\0\\0\\0\\0\\0\\0\\0\\0\\0\\0\\0\\0\\0\\0\\0\\0\\0\\0\\0\\0\\0\\0\\0\\0\\0\\0',
   `stoppedOnSignature` varchar(255) NOT NULL DEFAULT '',
@@ -222,6 +231,12 @@ class wfSchema {
   PRIMARY KEY (`IP`,`identifier`),
   KEY `expiration` (`expiration`)
 ) DEFAULT CHARSET=utf8;",
+'wfWafFailures' => "(
+  `id` INT(10) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `throwable` TEXT NOT NULL,
+  `rule_id` INT(10) UNSIGNED,
+  `timestamp` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+) DEFAULT CHARSET=utf8"
 );
 	private $db = false;
 	public function __construct($dbhost = false, $dbuser = false, $dbpassword = false, $dbname = false){

@@ -8,6 +8,8 @@
 
 namespace Smush\Core;
 
+use Smush\Core\Media\Media_Item_Cache;
+use Smush\Core\Media\Media_Item_Optimizer;
 use WP_CLI;
 use WP_CLI_Command;
 use WP_Smush;
@@ -52,6 +54,9 @@ class CLI extends WP_CLI_Command {
 	 *
 	 * # Smush first 5 images.
 	 * $ wp smush compress --type=batch --image=5
+	 *
+	 * @param array $args        All the positional arguments.
+	 * @param array $assoc_args  All the arguments defined like --key=value or --flag or --no-flag.
 	 */
 	public function compress( $args, $assoc_args ) {
 		$type  = $assoc_args['type'];
@@ -94,6 +99,8 @@ class CLI extends WP_CLI_Command {
 	 *
 	 * @subcommand list
 	 * @when after_wp_load
+	 *
+	 * @param array $args  All the positional arguments.
 	 */
 	public function _list( $args ) {
 		if ( ! empty( $args ) ) {
@@ -145,6 +152,9 @@ class CLI extends WP_CLI_Command {
 	 *
 	 * # Restore single image with ID = 10.
 	 * $ wp smush restore --id=10
+	 *
+	 * @param array $args        All the positional arguments.
+	 * @param array $assoc_args  All the arguments defined like --key=value or --flag or --no-flag.
 	 */
 	public function restore( $args, $assoc_args ) {
 		$id = $assoc_args['id'];
@@ -182,7 +192,8 @@ class CLI extends WP_CLI_Command {
 			$attachment_id = array_pop( $images );
 
 			// Skip if already Smushed.
-			if ( ! in_array( (int) $attachment_id, $unsmushed_attachments, true ) ) {
+			$should_convert = $core->mod->webp->should_be_converted( $attachment_id );
+			if ( ! in_array( (int) $attachment_id, $unsmushed_attachments, true ) && ! $should_convert ) {
 				/* translators: %d - attachment ID */
 				$errors[] = sprintf( __( 'Image (ID: %d) already compressed', 'wp-smushit' ), $attachment_id );
 				continue;
@@ -249,8 +260,7 @@ class CLI extends WP_CLI_Command {
 	private function restore_image( $id = 0 ) {
 		$core = WP_Smush::get_instance()->core();
 
-		$attachments = ! empty( $core->smushed_attachments ) ? $core->smushed_attachments : $core->get_smushed_attachments();
-
+		$attachments = $core->get_smushed_attachments();
 		if ( empty( $attachments ) ) {
 			WP_CLI::success( __( 'No images available to restore', 'wp-smushit' ) );
 			return;
@@ -269,14 +279,25 @@ class CLI extends WP_CLI_Command {
 
 		$warning = false;
 		foreach ( $attachments as $attachment_id ) {
-			if ( ! $this->can_restore( $attachment_id ) ) {
+			if ( ! $core->mod->backup->backup_exists( $attachment_id ) ) {
 				$warning = true;
-				WP_CLI::warning( __( "Image {$attachment_id} cannot be restored", 'wp-smushit' ) );
+
+				$warning_text = sprintf(/* translators: %d - attachment ID */
+					esc_html__( 'Image %d cannot be restored', 'wp-smushit' ),
+					(int) $attachment_id
+				);
+				WP_CLI::warning( $warning_text );
 				$progress->tick();
 				continue;
 			}
 
-			$core->mod->backup->restore_image( $attachment_id, false );
+			$media_item = Media_Item_Cache::get_instance()->get( $attachment_id );
+			$optimizer  = new Media_Item_Optimizer( $media_item );
+			$restored   = $optimizer->restore();
+			if ( ! $restored ) {
+				$warning = true;
+			}
+
 			$progress->tick();
 		}
 
@@ -287,66 +308,6 @@ class CLI extends WP_CLI_Command {
 		} else {
 			WP_CLI::success( __( 'All images restored', 'wp-smushit' ) );
 		}
-
-	}
-
-	/**
-	 * Verify, that image can be restored.
-	 *
-	 * TODO: this copies the Smush code, so it needs to be refactored.
-	 *
-	 * @since 3.1.0
-	 *
-	 * @param int $image_id  Attachment ID.
-	 *
-	 * @return bool
-	 */
-	private function can_restore( $image_id ) {
-		// Get the image path for all sizes.
-		$file = get_attached_file( $image_id );
-
-		// Get stored backup path, if any.
-		$backup_sizes = get_post_meta( $image_id, '_wp_attachment_backup_sizes', true );
-
-		// Check if we've a backup path.
-		if ( ! empty( $backup_sizes ) && ( ! empty( $backup_sizes['smush-full'] ) || ! empty( $backup_sizes['smush_png_path'] ) ) ) {
-			// Check for PNG backup.
-			$backup = ! empty( $backup_sizes['smush_png_path'] ) ? $backup_sizes['smush_png_path'] : '';
-
-			// Check for original full size image backup.
-			$backup = empty( $backup ) && ! empty( $backup_sizes['smush-full'] ) ? $backup_sizes['smush-full'] : $backup;
-			$backup = ! empty( $backup['file'] ) ? $backup['file'] : '';
-		}
-
-		// If we still don't have a backup path, use traditional method to get it.
-		if ( empty( $backup ) ) {
-			// Check backup for Full size.
-			$backup = WP_Smush::get_instance()->core()->mod->backup->get_image_backup_path( $file );
-		} else {
-			// Get the full path for file backup.
-			$backup = str_replace( wp_basename( $file ), wp_basename( $backup ), $file );
-		}
-
-		$file_exists = apply_filters( 'smush_backup_exists', file_exists( $backup ), $image_id, $backup );
-
-		if ( $file_exists ) {
-			return true;
-		}
-
-		// Additional Backup Check for JPEGs converted from PNG.
-		$pngjpg_savings = get_post_meta( $image_id, WP_SMUSH_PREFIX . 'pngjpg_savings', true );
-		if ( ! empty( $pngjpg_savings ) ) {
-
-			// Get the original File path and check if it exists.
-			$backup = get_post_meta( $image_id, WP_SMUSH_PREFIX . 'original_file', true );
-			$backup = Helper::original_file( $backup );
-
-			if ( ! empty( $backup ) && is_file( $backup ) ) {
-				return true;
-			}
-		}
-
-		return false;
 	}
 
 }

@@ -86,7 +86,7 @@ $failedRules = array();
 try {
 	$waf->runRules();
 } catch (wfWAFAllowException $e) {
-	$result = '<strong class="ok">Whitelisted</strong>';
+	$result = '<strong class="ok">Allowlisted</strong>';
 } catch (wfWAFBlockException $e) {
 	$result = '<strong class="error">Blocked</strong>';
 	$failedRules = $waf->getFailedRules();
@@ -105,6 +105,7 @@ try {
 	<meta charset="UTF-8">
 	<title><?php echo esc_html($title) ?></title>
 	<link rel="stylesheet" href="<?php echo wfUtils::getBaseURL() . wfUtils::versionedAsset('css/main.css'); ?>">
+	<link rel="stylesheet" href="<?php echo wfLicense::current()->getStylesheet(); ?>">
 	<style>
 		html {
 			font-family: "Open Sans", Helvetica, Arial, sans-serif;

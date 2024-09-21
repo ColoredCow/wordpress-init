@@ -259,16 +259,16 @@ SQL
 		}
 		
 		$table_wfBlockedIPLog = wfDB::networkTable('wfBlockedIPLog');
-		$results = $this->db->get_results($this->db->prepare(<<<SQL
-SELECT *,
+		$query=<<<SQL
+SELECT IP, countryCode, unixday, blockType,
 SUM(blockCount) as blockCount
 FROM {$table_wfBlockedIPLog}
 WHERE unixday >= {$interval}
 GROUP BY IP
 ORDER BY blockCount DESC
 LIMIT %d
-SQL
-			, $limit));
+SQL;
+		$results = $this->db->get_results($this->db->prepare($query, $limit));
 		if ($results) {
 			foreach ($results as &$row) {
 				$row->countryName = $this->getCountryNameByCode($row->countryCode);
@@ -299,14 +299,14 @@ SQL
 		}
 	  	
 		$table_wfBlockedIPLog = wfDB::networkTable('wfBlockedIPLog');
-		$results = $this->db->get_results($this->db->prepare(<<<SQL
-SELECT *, COUNT(IP) as totalIPs, SUM(blockCount) as totalBlockCount
-FROM (SELECT * FROM {$table_wfBlockedIPLog} WHERE unixday >= {$interval} GROUP BY IP) t
+		$query=<<<SQL
+SELECT *, COUNT(IP) as totalIPs, SUM(ipBlockCount) as totalBlockCount
+FROM (SELECT *, SUM(blockCount) AS ipBlockCount FROM {$table_wfBlockedIPLog} WHERE unixday >= {$interval} GROUP BY IP) t
 GROUP BY countryCode
 ORDER BY totalBlockCount DESC
 LIMIT %d
-SQL
-			, $limit));
+SQL;
+		$results = $this->db->get_results($this->db->prepare($query, $limit));
 		if ($results) {
 			foreach ($results as &$row) {
 				$row->countryName = $this->getCountryNameByCode($row->countryCode);
@@ -372,14 +372,15 @@ SQL
 		}
 		return false;
 	}
-	
+
 	/**
 	 * Returns list of firewall activity up to $limit number of entries.
-	 * 
+	 *
 	 * @param int $limit Max events to return in results
+	 * @param int $remainder
 	 * @return array
 	 */
-	public function getRecentFirewallActivity($limit = 300, &$remainder) {
+	public function getRecentFirewallActivity($limit, &$remainder) {
 		$dateRange = wfActivityReport::getReportDateRange();
 		$recent_firewall_activity = new wfRecentFirewallActivity(null, max(604800, $dateRange[1] - $dateRange[0]));
 		$recent_firewall_activity->run();
@@ -445,13 +446,14 @@ SQL
 		}
 
 		$country = wfUtils::IP2Country($ip_address);
-
+		
+		$ipHex = wfDB::binaryValueToSQLHex($ip_bin);
 		$wpdb->query($wpdb->prepare(<<<SQL
 INSERT INTO $blocked_table (IP, countryCode, blockCount, unixday, blockType)
-VALUES (%s, %s, 1, $unixday_insert, %s)
+VALUES ({$ipHex}, %s, 1, $unixday_insert, %s)
 ON DUPLICATE KEY UPDATE blockCount = blockCount + 1
 SQL
-			, $ip_bin, $country, $type));
+			, $country, $type));
 	}
 
 	/**
@@ -503,8 +505,8 @@ SQL
 		$success = true;
 		if (is_string($email_addresses)) { $email_addresses = explode(',', $email_addresses); }
 		foreach ($email_addresses as $email) {
-			$uniqueContent = str_replace('<!-- ##UNSUBSCRIBE## -->', sprintf(__('No longer an administrator for this site? <a href="%s" target="_blank">Click here</a> to stop receiving security alerts.', 'wordfence'), wfUtils::getSiteBaseURL() . '?_wfsf=removeAlertEmail&jwt=' . wfUtils::generateJWT(array('email' => $email))), $content);
-			if (!wp_mail($email, 'Wordfence activity for ' . date_i18n(get_option('date_format')) . ' on ' . $shortSiteURL, $uniqueContent, 'Content-Type: text/html')) {
+			$uniqueContent = str_replace('<!-- ##UNSUBSCRIBE## -->', wp_kses(sprintf(/* translators: URL to the WordPress admin panel. */ __('No longer an administrator for this site? <a href="%s" target="_blank">Click here</a> to stop receiving security alerts.', 'wordfence'), wfUtils::getSiteBaseURL() . '?_wfsf=removeAlertEmail&jwt=' . wfUtils::generateJWT(array('email' => $email))), array('a'=>array('href'=>array(), 'target'=>array()))), $content);
+			if (!wp_mail($email, sprintf(/* translators: 1. Site URL. 2. Localized date. */ __('Wordfence activity for %1$s on %2$s', 'wordfence'), date_i18n(get_option('date_format')), $shortSiteURL), $uniqueContent, 'Content-Type: text/html')) {
 				$success = false;
 			}
 		}
@@ -580,10 +582,10 @@ SQL
 				}
 				
 				if (isset($actionData['failedRules']) && $actionData['failedRules'] == 'blocked') {
-					$row->longDescription = "Blocked because the IP is blacklisted";
+					$row->longDescription = __("Blocked because the IP is blocklisted", 'wordfence');
 				}
 				else {
-					$row->longDescription = "Blocked for " . $row->actionDescription;
+					$row->longDescription = sprintf(__("Blocked for %s", 'wordfence'), $row->actionDescription);
 				}
 				
 				$paramKey = base64_decode($actionData['paramKey']);
@@ -595,16 +597,16 @@ SQL
 				if (preg_match('/([a-z0-9_]+\.[a-z0-9_]+)(?:\[(.+?)\](.*))?/i', $paramKey, $matches)) {
 					switch ($matches[1]) {
 						case 'request.queryString':
-							$row->longDescription = "Blocked for " . $row->actionDescription . ' in query string: ' . $matches[2] . '=' . $paramValue;
+							$row->longDescription = sprintf(__('Blocked for %1$s in query string: %2$s = %3$s', 'wordfence'), $row->actionDescription, $matches[2], $paramValue);
 							break;
 						case 'request.body':
-							$row->longDescription = "Blocked for " . $row->actionDescription . ' in POST body: ' . $matches[2] . '=' . $paramValue;
+							$row->longDescription = sprintf(__('Blocked for %1$s in POST body: %2$s = %3$s', 'wordfence'), $row->actionDescription, $matches[2], $paramValue);
 							break;
 						case 'request.cookie':
-							$row->longDescription = "Blocked for " . $row->actionDescription . ' in cookie: ' . $matches[2] . '=' . $paramValue;
+							$row->longDescription = sprintf(__('Blocked for %1$s in cookie: %2$s = %3$s', 'wordfence'), $row->actionDescription, $matches[2], $paramValue);
 							break;
 						case 'request.fileNames':
-							$row->longDescription = "Blocked for a " . $row->actionDescription . ' in file: ' . $matches[2] . '=' . $paramValue;
+							$row->longDescription = sprintf(__('Blocked for %1$s in file: %2$s = %3$s', 'wordfence'), $row->actionDescription, $matches[2], $paramValue);
 							break;
 					}
 				}
@@ -748,7 +750,7 @@ class wfActivityReportView extends wfView {
 	public function displayIP($binaryIP) {
 		$readableIP = wfUtils::inet_ntop($binaryIP);
 		$country = wfUtils::countryCode2Name(wfUtils::IP2Country($readableIP));
-		return "{$readableIP} (" . ($country ? $country : 'Unknown') . ")"; 
+		return "{$readableIP} (" . ($country ? $country : __('Unknown', 'wordfence')) . ")";
 	}
 }
 }

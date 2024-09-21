@@ -18,7 +18,7 @@ $selectOptions = array(
 			<li class="wf-option-spacer"></li>
 			<li class="wf-option-content">
 				<ul class="wf-flex-vertical wf-flex-align-left">
-					<li class="wf-option-title"><?php _e('How does Wordfence get IPs', 'wordfence'); ?> <a href="<?php echo wfSupportController::esc_supportURL(wfSupportController::ITEM_DASHBOARD_OPTION_HOW_GET_IPS); ?>"  target="_blank" rel="noopener noreferrer" class="wf-inline-help"><i class="wf-fa wf-fa-question-circle-o" aria-hidden="true"></i></a></li>
+					<li class="wf-option-title"><?php esc_html_e('How does Wordfence get IPs', 'wordfence'); ?> <a href="<?php echo wfSupportController::esc_supportURL(wfSupportController::ITEM_DASHBOARD_OPTION_HOW_GET_IPS); ?>"  target="_blank" rel="noopener noreferrer" class="wf-inline-help"><i class="wf-fa wf-fa-question-circle-o" aria-hidden="true"></i><span class="screen-reader-text"> (<?php esc_html_e('opens in new tab', 'wordfence') ?>)</span></a></li>
 					<li>
 						<ul class="wf-flex-vertical wf-flex-align-left">
 							<li class="wf-padding-add-left">
@@ -29,9 +29,9 @@ $selectOptions = array(
 								</ul>
 							</li>
 							<li class="wf-option-howgetips-details wf-padding-add-top-small">
-								<div class="wf-left">Detected IP(s): <span id="howGetIPs-preview-all"><?php echo wfUtils::getIPPreview(); ?></span></div>
-								<div class="wf-left">Your IP with this setting: <span id="howGetIPs-preview-single"><?php echo wfUtils::getIP(); ?></span></div>
-								<div class="wf-left"><a href="#" id="howGetIPs-trusted-proxies-show">+ Edit trusted proxies</a></div>
+								<div class="wf-left"><?php esc_html_e('Detected IP(s):', 'wordfence') ?> <span id="howGetIPs-preview-all"><?php echo wfUtils::getIPPreview(); ?></span></div>
+								<div class="wf-left"><?php esc_html_e('Your IP with this setting:', 'wordfence') ?> <span id="howGetIPs-preview-single"><?php echo wfUtils::getIP(); ?></span></div>
+								<div class="wf-left"><a href="#" id="howGetIPs-trusted-proxies-show" role="button">+ <?php esc_html_e('Edit trusted proxies', 'wordfence') ?></a></div>
 							</li>
 						</ul>
 					</li>
@@ -47,12 +47,42 @@ $selectOptions = array(
 				<ul>
 					<li class="wf-option-title">
 						<ul class="wf-flex-vertical wf-flex-align-left">
-							<li><?php _e('Trusted Proxies', 'wordfence'); ?></li>
-							<li class="wf-option-subtitle"><?php _e('These IPs (or CIDR ranges) will be ignored when determining the requesting IP via the X-Forwarded-For HTTP header. Enter one IP or CIDR range per line.', 'wordfence'); ?></li>
+							<li><?php esc_html_e('Trusted Proxies', 'wordfence'); ?></li>
+							<li class="wf-option-subtitle"><?php esc_html_e('These IPs (or CIDR ranges) will be ignored when determining the requesting IP via the X-Forwarded-For HTTP header. Enter one IP or CIDR range per line.', 'wordfence'); ?></li>
 						</ul>
 					</li>
 					<li class="wf-option-textarea">
 						<textarea spellcheck="false" autocapitalize="none" autocomplete="off" name="howGetIPs_trusted_proxies"><?php echo esc_html(wfConfig::get('howGetIPs_trusted_proxies')); ?></textarea>
+					</li>
+				</ul>
+			</li>
+		</ul>
+	</li>
+	<li id="howGetIPs-trusted-proxy-preset">
+		<ul id="wf-option-howGetIPs-trusted-proxy-preset" class="wf-option wf-option-select" data-text-option="howGetIPs_trusted_proxy_preset" data-original-text-value="<?php echo esc_attr(wfConfig::get('howGetIPs_trusted_proxy_preset')); ?>">
+			<li class="wf-option-spacer"></li>
+			<li class="wf-option-content">
+				<ul>
+					<li class="wf-option-title">
+						<ul class="wf-flex-vertical wf-flex-align-left">
+							<li><span id="wf-option-howGetIPs-trusted-proxy-preset-label"><?php esc_html_e('Trusted Proxy Preset', 'wordfence'); ?></span></li>
+							<li class="wf-option-subtitle"><?php esc_html_e('In addition to the above list, the IPs (or CIDR ranges) in the selected preset will be ignored when determining the requesting IP via the X-Forwarded-For HTTP header.', 'wordfence'); ?></li>
+						</ul>
+					</li>
+					<li class="wf-option-select">
+						<?php
+						$presets = wfConfig::getJSON('ipResolutionList', array());
+						if (!is_array($presets)) {
+							$presets = array();
+						}
+						$keys = array_keys($presets); asort($keys);
+						?>
+						<select<?php echo (!empty($presets) ? '' : ' disabled'); ?> aria-labelledby="wf-option-howGetIPs-trusted-proxy-preset-label">
+							<option class="wf-option-select-option" value=""<?php if (!in_array(wfConfig::get('howGetIPs_trusted_proxy_preset'), $keys)) { echo ' selected'; } ?>><?php esc_html_e('None', 'wordfence'); ?></option>
+							<?php foreach ($keys as $k): ?>
+								<option class="wf-option-select-option" value="<?php echo esc_attr($k); ?>"<?php if ($k == wfConfig::get('howGetIPs_trusted_proxy_preset')) { echo ' selected'; } ?>><?php echo esc_html($presets[$k]['name']); ?></option>
+							<?php endforeach; ?> 
+						</select>
 					</li>
 				</ul>
 			</li>
@@ -63,7 +93,7 @@ $selectOptions = array(
 	(function($) {
 		$(function() {
 			var updateIPPreview = function() {
-				WFAD.updateIPPreview({howGetIPs: $('input[name="wf-howgetIPs"]:checked').val(), 'howGetIPs_trusted_proxies': $('#howGetIPs-trusted-proxies textarea').val()}, function(ret) {
+				WFAD.updateIPPreview({howGetIPs: $('input[name="wf-howgetIPs"]:checked').val(), 'howGetIPs_trusted_proxies': $('#howGetIPs-trusted-proxies textarea').val(), 'howGetIPs_trusted_proxy_preset': $('#howGetIPs-trusted-proxy-preset select').val()}, function(ret) {
 					if (ret && ret.ok) {
 						$('#howGetIPs-preview-all').html(ret.ipAll);
 						$('#howGetIPs-preview-single').html(ret.ip);
@@ -116,13 +146,36 @@ $selectOptions = array(
 				}, 4);
 			});
 
+			$('#howGetIPs-trusted-proxy-preset').on('change', function() {
+				var e = this;
+
+				setTimeout(function() {
+					clearTimeout(coalescingUpdateTimer);
+					coalescingUpdateTimer = setTimeout(updateIPPreview, 1000);
+
+					var optionElement = $(e).find('.wf-option.wf-option-select');
+					var option = optionElement.data('textOption');
+					var value = $(e).find('select').val();
+
+					var originalValue = optionElement.data('originalTextValue');
+					if (originalValue == value) {
+						delete WFAD.pendingChanges[option];
+					}
+					else {
+						WFAD.pendingChanges[option] = value;
+					}
+
+					WFAD.updatePendingChanges();
+				}, 4);
+			});
+
 			$(window).on('wfOptionsReset', function() {
 				$('input[name="wf-howgetIPs"]').each(function() {
 					var optionElement = $(this).closest('.wf-option.wf-option-howgetips');
 					var option = optionElement.data('option');
 					var originalValue = optionElement.data('originalValue');
 					
-					$(this).attr('checked', originalValue == $(this).attr('value'));
+					$(this).prop('checked', originalValue == $(this).attr('value'));
 				});
 						
 				$('#howGetIPs-trusted-proxies textarea').each(function() {
@@ -155,12 +208,24 @@ $selectOptions = array(
 								$('#howGetIPs-trusted-proxies').removeClass('wf-active');
 							}
 						});
+
+						$('#howGetIPs-trusted-proxy-preset').slideUp({
+							always: function() {
+								$('#howGetIPs-trusted-proxy-preset').removeClass('wf-active');
+							}
+						});
 					}
 					else {
 						$(this).parent().slideUp(); 
 						$('#howGetIPs-trusted-proxies').slideDown({
 							always: function() {
 								$('#howGetIPs-trusted-proxies').addClass('wf-active');
+							}
+						});
+
+						$('#howGetIPs-trusted-proxy-preset').slideDown({
+							always: function() {
+								$('#howGetIPs-trusted-proxy-preset').addClass('wf-active');
 							}
 						});
 					}

@@ -39,7 +39,7 @@ class Resize_Detection extends Abstract_Module {
 		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_resize_assets' ) );
 
 		// Set a flag to media library images.
-		add_action( 'smush_cdn_image_tag', array( $this, 'skip_image_resize_detection' ) );
+		add_filter( 'wp_smush_updated_element_markup', array( $this, 'skip_image_resize_detection' ) );
 
 		// Generate markup for the template engine.
 		add_action( 'wp_footer', array( $this, 'generate_markup' ) );

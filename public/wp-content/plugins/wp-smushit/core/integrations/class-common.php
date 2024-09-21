@@ -12,6 +12,9 @@
 
 namespace Smush\Core\Integrations;
 
+use Smush\Core\CDN\CDN_Helper;
+use Smush\Core\Helper;
+use Smush\Core\Modules\Helpers\Parser;
 use Smush\Core\Modules\Smush;
 use WP_Smush;
 
@@ -25,28 +28,51 @@ if ( ! defined( 'WPINC' ) ) {
  * @since 2.8.0
  */
 class Common {
+	private $cdn_helper;
 
 	/**
 	 * Common constructor.
 	 */
 	public function __construct() {
-		// AJAX Thumbnail Rebuild integration.
-		add_filter( 'wp_smush_media_image', array( $this, 'skip_images' ), 10, 2 );
+		if ( is_admin() ) {
+			// AJAX Thumbnail Rebuild integration.
+			add_filter( 'wp_smush_media_image', array( $this, 'skip_images' ), 10, 2 );
 
-		// Optimise WP retina 2x images.
-		add_action( 'wr2x_retina_file_added', array( $this, 'smush_retina_image' ), 20, 3 );
+			// Optimise WP retina 2x images.
+			add_action( 'wr2x_retina_file_added', array( $this, 'smush_retina_image' ), 20, 3 );
+
+			// Remove any pre_get_posts_filters added by WP Media Folder plugin.
+			add_action( 'wp_smush_remove_filters', array( $this, 'remove_filters' ) );
+		}
 
 		// WPML integration.
-		add_action( 'wp_smush_image_optimised', array( $this, 'wpml_update_duplicate_meta' ), 10, 3 );
-
-		// Remove any pre_get_posts_filters added by WP Media Folder plugin.
-		add_action( 'wp_smush_remove_filters', array( $this, 'remove_filters' ) );
+		add_action( 'wpml_updated_attached_file', array( $this, 'wpml_undo_ignore_attachment' ) );
+		add_action( 'wpml_after_duplicate_attachment', array( $this, 'wpml_ignore_duplicate_attachment' ), 10, 2 );
+		add_action( 'wpml_after_copy_attached_file_postmeta', array( $this, 'wpml_ignore_duplicate_attachment' ), 10, 2 );
 
 		// ReCaptcha lazy load.
 		add_filter( 'smush_skip_iframe_from_lazy_load', array( $this, 'exclude_recaptcha_iframe' ), 10, 2 );
 
-		// Compatibility modules for lazy loading.
-		add_filter( 'smush_skip_image_from_lazy_load', array( $this, 'lazy_load_compat' ), 10, 3 );
+		// Soliloquy slider CDN support.
+		add_filter( 'soliloquy_image_src', array( $this, 'soliloquy_image_src' ) );
+
+		// Translate Press integration.
+		add_filter( 'smush_skip_image_from_lazy_load', array( $this, 'trp_translation_editor' ) );
+
+		// WP Maintenance Plugin integration.
+		add_action( 'template_redirect', array( $this, 'wp_maintenance_mode' ) );
+
+		// Buddyboss theme and its platform plugin integration.
+		add_filter( 'wp_smush_cdn_before_process_src', array( $this, 'buddyboss_platform_modify_image_src' ), 10, 2 );
+
+		// GiveWP donation form load lazyload images in iframe.
+		add_action( 'give_donation_form_top', array( $this, 'givewp_skip_image_lazy_load' ), 0 );
+
+		// Thumbnail regeneration handler.
+		add_filter( 'wp_generate_attachment_metadata', array( $this, 'maybe_handle_thumbnail_generation' ) );
+		$this->cdn_helper = CDN_Helper::get_instance();
+
+		add_filter( 'wp_smush_should_transform_page', array( $this, 'should_transform_page' ) );
 	}
 
 	/**
@@ -126,10 +152,6 @@ class Common {
 	public function smush_retina_image( $id, $retina_file, $image_size ) {
 		$smush = WP_Smush::get_instance()->core()->mod->smush;
 
-		// Initialize attachment id and media type.
-		$smush->attachment_id = $id;
-		$smush->media_type    = 'wp';
-
 		/**
 		 * Allows to Enable/Disable WP Retina 2x Integration
 		 */
@@ -145,17 +167,22 @@ class Common {
 		}
 
 		// Do not smush if auto smush is turned off.
-		if ( ! $smush->is_auto_smush_enabled() ) {
+		if ( ! $smush->should_auto_smush( $id ) ) {
 			return;
 		}
 
 		/**
 		 * Allows to skip a image from smushing
 		 *
-		 * @param bool , Smush image or not
-		 * @$size string, Size of image being smushed
+		 * @param bool   $smush_image Smush image or not
+		 * @param string $image_size  Size of image being smushed
+		 * @param string $retina_file Retina file path.
+		 * @param int    $id          Attachment ID.
+		 *
+		 * @since 3.9.6 Add two parameters for the filter.
 		 */
-		$smush_image = apply_filters( 'wp_smush_media_image', true, $image_size );
+		$smush_image = apply_filters( 'wp_smush_media_image', true, $image_size, $retina_file, $id );
+
 		if ( ! $smush_image ) {
 			return;
 		}
@@ -236,79 +263,35 @@ class Common {
 	 */
 
 	/**
-	 * Update meta for the duplicated image.
+	 * Ignore WPML duplicated images from Smush.
 	 *
-	 * If WPML is duplicating images, we need to update the meta for the duplicate image as well,
-	 * otherwise it will not be found during compression or on the WordPress back/front-ends.
+	 * If WPML is duplicating images, we need to mark them as ignored for Smushing
+	 * because the image is same for all those duplicated attachment posts. This is
+	 * required to avoid wrong Smush stats.
 	 *
-	 * @since 3.0
+	 * @param int $attachment_id            Original attachment ID.
+	 * @param int $duplicated_attachment_id Duplicated attachment ID.
 	 *
-	 * @param int   $id    Attachment ID.
-	 * @param array $stats Smushed stats.
-	 * @param array $meta  New meta data.
+	 * @since 3.9.4
 	 */
-	public function wpml_update_duplicate_meta( $id, $stats, $meta ) {
-		// Continue only if duplication is enabled.
-		if ( ! $this->is_wpml_duplicating_images() ) {
-			return;
-		}
-
-		global $wpdb;
-
-		// Get translated attachments.
-		$image_ids = $wpdb->get_col(
-			$wpdb->prepare(
-				"SELECT element_id FROM {$wpdb->prefix}icl_translations
-						WHERE trid IN (
-							SELECT trid FROM {$wpdb->prefix}icl_translations WHERE element_id=%d
-						) AND element_id!=%d AND element_type='post_attachment'",
-				array( $id, $id )
-			)
-		); // Db call ok; no-cache ok.
-
-		// If images found.
-		if ( ! empty( $image_ids ) ) {
-			// Get the resize savings.
-			$resize = get_post_meta( $id, WP_SMUSH_PREFIX . 'resize_savings' );
-			// Update each translations.
-			foreach ( $image_ids as $attchment_id ) {
-				// Smushed stats.
-				update_post_meta( $attchment_id, Smush::$smushed_meta_key, $stats );
-				// Resize savings.
-				if ( ! empty( $resize ) ) {
-					update_post_meta( $attchment_id, WP_SMUSH_PREFIX . 'resize_savings', $resize );
-				}
-				// Attachment meta data.
-				update_post_meta( $attchment_id, '_wp_attachment_metadata', $meta );
-			}
-		}
+	public function wpml_ignore_duplicate_attachment( $attachment_id, $duplicated_attachment_id ) {
+		// Ignore the image from Smush if duplicate.
+		update_post_meta( $duplicated_attachment_id, 'wp-smush-ignore-bulk', true );
 	}
 
 	/**
-	 * Check if WPML is active and is duplicating images.
+	 * Remove an image from the ignored list.
 	 *
-	 * @since 3.0
+	 * When a new image is added instead of duplicate, we need to remove it
+	 * from the ignored list to make it available for Smushing.
 	 *
-	 * @return bool
+	 * @param int $attachment_id Attachment ID.
+	 *
+	 * @since 3.9.4
 	 */
-	private function is_wpml_duplicating_images() {
-		if ( ! class_exists( '\SitePress' ) ) {
-			return false;
-		}
-
-		$media_settings = get_site_option( '_wpml_media' );
-
-		// Check if WPML media translations are active.
-		if ( ! $media_settings || ! isset( $media_settings['new_content_settings']['duplicate_media'] ) ) {
-			return false;
-		}
-
-		// WPML duplicate existing media for translated content?
-		if ( ! $media_settings['new_content_settings']['duplicate_media'] ) {
-			return false;
-		}
-
-		return true;
+	public function wpml_undo_ignore_attachment( $attachment_id ) {
+		// Delete ignore flag.
+		delete_post_meta( $attachment_id, 'wp-smush-ignore-bulk' );
 	}
 
 	/**
@@ -327,39 +310,312 @@ class Common {
 
 	/**************************************
 	 *
+	 * Soliloquy slider
+	 *
+	 * @since 3.6.2
+	 */
+
+	/**
+	 * Replace slider image links with CDN links.
+	 *
+	 * @param string $src  Image source.
+	 *
+	 * @return string
+	 */
+	public function soliloquy_image_src( $src ) {
+		if ( ! $this->cdn_helper->is_cdn_active() || empty( $src ) ) {
+			return $src;
+		}
+
+		if ( $this->cdn_helper->is_supported_url( $src ) ) {
+			return $this->cdn_helper->generate_cdn_url( $src );
+		}
+
+		return $src;
+	}
+
+	/**************************************
+	 *
+	 * Translate Press
+	 *
+	 * @since 3.6.3
+	 */
+
+	/**
+	 * Disables "Lazy Load" on Translate Press translate editor
+	 *
+	 * @param bool $skip  Should skip? Default: false.
+	 *
+	 * @return bool
+	 */
+	public function trp_translation_editor( $skip ) {
+		if ( ! class_exists( '\TRP_Translate_Press' ) || ! isset( $_GET['trp-edit-translation'] ) ) {
+			return $skip;
+		}
+
+		return true;
+	}
+
+	/**************************************
+	 *
+	 * WP Maintenance Plugin
+	 *
+	 * @since 3.8.0
+	 */
+
+	/**
+	 * Disable page parsing when "Maintenance" is enabled
+	 *
+	 * @since 3.8.0
+	 */
+	public function wp_maintenance_mode() {
+		if ( ! class_exists( '\MTNC' ) ) {
+			return;
+		}
+
+		global $mt_options;
+
+		if ( ! is_user_logged_in() && ! empty( $mt_options['state'] ) ) {
+			add_filter( 'wp_smush_should_skip_lazy_load', '__return_true' );
+		}
+	}
+
+	/**************************************
+	 *
 	 * Various modules
 	 *
 	 * @since 3.5
 	 */
 
 	/**
-	 * Lazy loading compatibility checks.
+	 * CDN compatibility with Buddyboss platform
 	 *
-	 * @since 3.5.0
+	 * @param string $src   Image source.
+	 * @param string $image Actual image element.
 	 *
-	 * @param bool   $skip   Should skip? Default: false.
-	 * @param string $src    Image url.
-	 * @param string $image  Image.
-	 *
-	 * @return bool
+	 * @return string Original or modified image source.
 	 */
-	public function lazy_load_compat( $skip, $src, $image ) {
-		// Avoid conflicts if attributes are set (another plugin, for example).
-		if ( false !== strpos( $image, 'data-src' ) ) {
-			return true;
+	public function buddyboss_platform_modify_image_src( $src, $image ) {
+		if ( ! defined( 'BP_PLATFORM_VERSION' ) ) {
+			return $src;
 		}
 
-		// Compatibility with Essential Grid lazy loading.
-		if ( false !== strpos( $image, 'data-lazysrc' ) ) {
-			return true;
+		/**
+		 * Compatibility with buddyboss theme and it's platform plugin.
+		 *
+		 * Buddyboss platform plugin uses the placeholder image as it's main src.
+		 * And process_src() method below uses the same placeholder.png to create
+		 * the srcset when "Automatic resizing" options is enabled for CDN.
+		 * ---------
+		 * Replacing the placeholder with actual image source as early as possible.
+		 * Checks:
+		 *   1. The image source contains buddyboss-platform in its string
+		 *   2. The image source contains placeholder.png and is crucial because there are other
+		 *      images as well which doesn't uses placeholder.
+		 */
+		if ( false !== strpos( $src, 'buddyboss-platform' ) && false !== strpos( $src, 'placeholder.png' ) ) {
+			$new_src = Parser::get_attribute( $image, 'data-src' );
+
+			if ( ! empty( $new_src ) ) {
+				$src = $new_src;
+			}
 		}
 
-		// Compatibility with JetPack lazy loading.
-		if ( false !== strpos( $image, 'jetpack-lazy-image' ) ) {
-			return true;
-		}
-
-		return $skip;
+		return $src;
 	}
 
+	/**
+	 * Skip images from lazy loading on GiveWP forms.
+	 *
+	 * @since 3.8.8
+	 */
+	public function givewp_skip_image_lazy_load() {
+		add_filter( 'wp_smush_should_skip_lazy_load', '__return_true' );
+	}
+
+	/**
+	 * Add method to handle  thumbnail generation.
+	 *
+	 * We use this trick to call self::thumbnail_regenerate_handler()
+	 * to avoid it called several times while calling wp_generate_attachment_metadata().
+	 * 1. wp_generate_attachment_metadata -> wp_create_image_subsizes -> wp_update_attachment_metadata().
+	 * 2. wp_generate_attachment_metadata -> _wp_make_subsizes        -> wp_update_attachment_metadata().
+	 * 3. After calling wp_generate_attachment_metadata() => We should only add our filter here.
+	 *
+	 * @param  array $metadata Image metadata.
+	 * @return array The provided metadata.
+	 */
+	public function maybe_handle_thumbnail_generation( $metadata ) {
+		/**
+		 * Add filter to handle thumbnail generation.
+		 * We use a big priority because it seems WP has an issue for this case,
+		 * after we remove this filter, all registered filters after this priority of this hook will not call.
+		 */
+		add_filter( 'wp_update_attachment_metadata', array( $this, 'thumbnail_regenerate_handler' ), 99999, 2 ); // S3 is using priority 110.
+		return $metadata;
+	}
+
+	/**
+	 * Callback for 'wp_update_attachment_metadata' WordPress hook used by Smush to detect
+	 * regenerated thumbnails and mark them as pending for (re)smush.
+	 *
+	 * @since 3.9.2
+	 *
+	 * @param array $new_meta New metadata.
+	 * @param int   $attachment_id The attachment ID.
+	 *
+	 * @since 3.9.6 Disable this filter while async uploading,
+	 * and update compatible with S3, and only call it after generated metadata.
+	 *
+	 * @return array
+	 */
+	public function thumbnail_regenerate_handler( $new_meta, $attachment_id ) {
+		// Remove the filter as we are no longer need it.
+		remove_filter( 'wp_update_attachment_metadata', array( $this, 'thumbnail_regenerate_handler' ), 99999 );
+
+		/**
+		 * Skip if there is WP uploading a new image,
+		 * or the attachment is not an image or does not have thumbnails.
+		 */
+		if (
+			empty( $new_meta['sizes'] )
+			// Async uploading.
+			|| isset( $_POST['post_id'] ) || isset( $_FILES['async-upload'] )
+			// Smushed it, don't need to check it again.
+			|| did_action( 'wp_smush_before_smush_file' )
+			// Disable when restoring.
+			|| did_action( 'wp_smush_before_restore_backup' )
+			// Only support Image.
+			|| ! Helper::is_smushable( $attachment_id )
+		) {
+			return $new_meta;
+		}
+
+		// Skip if the attachment has an active smush operation or in being restored by Smush or ignored.
+		if ( get_transient( 'smush-in-progress-' . $attachment_id ) || get_transient( 'wp-smush-restore-' . $attachment_id ) || get_post_meta( $attachment_id, 'wp-smush-ignore-bulk', true ) ) {
+			return $new_meta;
+		}
+
+		$smush_meta = get_post_meta( $attachment_id, Smush::$smushed_meta_key, true );
+
+		// Skip attachments without Smush meta key.
+		if ( empty( $smush_meta ) ) {
+			return $new_meta;
+		}
+
+		$size_increased = false;
+		/**
+		 * Get attached file
+		 * If there is generating the image, S3 also downloaded it,
+		 * so we don't need to download it if it doesn't exist.
+		 */
+		$attached_file = Helper::get_attached_file( $attachment_id, 'original' );// S3+.
+		// If the main file does not exist, there is not generating the thumbnail, return.
+		if ( ! file_exists( $attached_file ) ) {
+			return $new_meta;
+		}
+
+		// We need only the last $new_meta['sizes'] element of each subsequent call
+		// to wp_update_attachment_metadata() made by wp_create_image_subsizes().
+		$size = array_keys( $new_meta['sizes'] )[ count( $new_meta['sizes'] ) - 1 ];
+
+		$file_dir  = dirname( $attached_file );
+		$file_name = $file_dir . '/' . $new_meta['sizes'][ $size ]['file'];
+
+		$actual_size = is_file( $file_name ) ? filesize( $file_name ) : false;
+		$stored_size = isset( $smush_meta['sizes'][ $size ]->size_after ) ? $smush_meta['sizes'][ $size ]->size_after : false;
+
+		// Only do the comparison if we have both the actual and the database stored size.
+		if ( $actual_size && $stored_size ) {
+			$size_increased = $actual_size > 1.01 * $stored_size;// Not much we can do if save less than 1%.
+		}
+
+		// File size increased? Let's remove all
+		// Smush related meta keys for this attachment.
+		if ( $size_increased ) {
+			/**
+			 * When regenerate an image, we only generate the sub-sizes,
+			 * so we don't need to delete the saving data of PNG2JPG.
+			 * And similar for resizing, we also added filter for big_image_size_threshold,
+			 * and we don't use the resizing meta for any conditional, so it's ok to keep it.
+			 */
+			// Remove stats and update cache.
+			WP_Smush::get_instance()->core()->remove_stats( $attachment_id );
+		}
+
+		return $new_meta;
+	}
+
+	public function should_transform_page( $should_transform ) {
+		return $should_transform
+		       && ! $this->is_smartcrawl_analysis_request()
+		       && ! $this->is_page_builder_request();
+	}
+
+	/**
+	 * Compatibility with SmartCrawl readability analysis.
+	 * Do not process page on analysis.
+	 *
+	 * @since 3.3.0
+	 */
+	private function is_smartcrawl_analysis_request() {
+		$wds_analysis = filter_input( INPUT_POST, 'action', FILTER_SANITIZE_SPECIAL_CHARS );
+		if ( ! is_null( $wds_analysis ) && 'wds-analysis-recheck' === $wds_analysis ) {
+			return true;
+		}
+
+		if ( null !== filter_input( INPUT_GET, 'wds-frontend-check', FILTER_SANITIZE_SPECIAL_CHARS ) ) {
+			return true;
+		}
+
+		return false;
+	}
+
+	/**
+	 * Check if this is one of the known page builders.
+	 *
+	 * @return bool
+	 * @since 3.5.1
+	 *
+	 */
+	private function is_page_builder_request() {
+		// Oxygen builder.
+		if ( defined( 'SHOW_CT_BUILDER' ) && SHOW_CT_BUILDER ) {
+			return true;
+		}
+
+		// Oxygen builder as well.
+		if ( null !== filter_input( INPUT_GET, 'ct_builder' ) ) {
+			return true;
+		}
+
+		// Divi builder.
+		if ( null !== filter_input( INPUT_GET, 'et_fb' ) ) {
+			return true;
+		}
+
+		// Beaver builder.
+		if ( null !== filter_input( INPUT_GET, 'fl_builder' ) ) {
+			return true;
+		}
+
+		// Thrive Architect Builder.
+		if ( null !== filter_input( INPUT_GET, 'tve' ) && null !== filter_input( INPUT_GET, 'tcbf' ) ) {
+			return true;
+		}
+
+		// Tatsu page builder.
+		if ( null !== filter_input( INPUT_GET, 'tatsu' ) ) {
+			return true;
+		}
+
+		// BuddyBoss' AJAX requests. They do something strange and end up defining
+		// DOING_AJAX on template_redirect after self::parse_page() runs. That makes
+		// our lazy load page parsing break some of their AJAX requests.
+		if ( function_exists( 'bbp_is_ajax' ) && bbp_is_ajax() ) {
+			return true;
+		}
+
+		return false;
+	}
 }

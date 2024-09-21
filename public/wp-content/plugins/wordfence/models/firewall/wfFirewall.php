@@ -392,7 +392,7 @@ class wfFirewall
 			$reenbleCount = count($rules) - $enabledCount;
 			return array(
 				'percentage' => ($round ? round($percentEnabled, 2) : $percentEnabled),
-				'title'      => sprintf(_nx('Re-enable %d firewall rule.', 'Re-enable %d firewall rules.', $reenbleCount, 'wordfence'), number_format_i18n($reenbleCount)),
+				'title'      => sprintf(_n('Re-enable %d firewall rule.', 'Re-enable %d firewall rules.', $reenbleCount, 'wordfence'), number_format_i18n($reenbleCount)),
 			);
 		}
 		catch (Exception $e) {
@@ -458,7 +458,7 @@ class wfFirewall
 			}
 			return array(
 				'percentage' => 1.0,
-				'title'      => __('Enable Real-Time IP Blacklist.', 'wordfence'),
+				'title'      => __('Enable Real-Time IP Blocklist.', 'wordfence'),
 			);
 		}
 		catch (Exception $e) {
@@ -467,7 +467,7 @@ class wfFirewall
 			
 		return array(
 			'percentage' => 1.0,
-			'title'      => __('Enable Real-Time IP Blacklist.', 'wordfence'),
+			'title'      => __('Enable Real-Time IP Blocklist.', 'wordfence'),
 		);
 	}
 

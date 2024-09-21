@@ -25,35 +25,20 @@
         .smush-filename-extension {
             background-color: $accessible-dark;
         }
-        .smush-cdn-stats {
-            .sui-circle-score {
-                svg {
-                    circle:last-child {
-                        stroke: $accessible-dark;
-                    }
-                }
-            }
-        }
         // Check images button.
         .sui-button {
             &.smush-button-check-success:before {
                 color: $accessible-light;
             }
         }
-        // Pro features box.
-        .smush-pro-features {
-            .smush-pro-feature-title {
-                &:before {
-                    color: $accessible-dark;
-                }
-            }
-            .smush-pro-feature-desc {
-                color: $accessible-dark;
-            }
-        }
         // Smush submit note.
         .smush-submit-note {
             color: $accessible-dark;
+        }
+
+        // Hightlight lazyload spinner.
+        .sui-lazyload .sui-box-selector [name="animation[spinner-icon]"]:checked+span {
+            background-color: rgba(220,220,222, 0.7)!important;
         }
     }
 }

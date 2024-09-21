@@ -1,6 +1,8 @@
 <?php
 if (!defined('WFWAF_RUN_COMPLETE')) {
 
+require_once __DIR__ . '/../vendor/wordfence/wf-waf/src/lib/shutdown.php';
+
 class wfWAFIPBlocksController
 {
 	const WFWAF_BLOCK_UAREFIPRANGE = 'UA/Referrer/IP Range not allowed';
@@ -41,7 +43,7 @@ class wfWAFIPBlocksController
 		static $willSynchronize = false;
 		if (!$willSynchronize) {
 			$willSynchronize = true;
-			register_shutdown_function('wfWAFIPBlocksController::synchronizeConfigSettings');
+			wfShutdownRegistry::getDefaultInstance()->register('wfWAFIPBlocksController::synchronizeConfigSettings');
 		}
 	}
 	
@@ -55,6 +57,9 @@ class wfWAFIPBlocksController
 			return;
 		}
 		$isSynchronizing = true;
+		
+		global $wpdb;
+		$suppressed = $wpdb->suppress_errors(!(defined('WFWAF_DEBUG') && WFWAF_DEBUG));
 		
 		// Pattern Blocks
 		$blocks = wfBlock::patternBlocks(true);
@@ -136,6 +141,8 @@ class wfWAFIPBlocksController
 			// Do nothing
 		}
 		$isSynchronizing = false;
+		
+		$wpdb->suppress_errors($suppressed);
 	}
 	
 	/**
@@ -478,22 +485,13 @@ class wfWAFIPBlocksController
 	}
 	
 	protected function ip2Country($ip) {
-		if (version_compare(phpversion(), '5.4.0', '<')) {
-			return '';
-		}
-		
-		require_once(dirname(__FILE__) . '/wfWAFGeoIP2.php');
-		
-		try {
-			$geoip = @wfWAFGeoIP2::shared();
-			$code = @$geoip->countryCode($ip);
-			return is_string($code) ? $code : '';
-		}
-		catch (Exception $e) {
-			//Ignore
-		}
-		
-		return '';
+		/**
+		 * It's possible this class is already loaded from a different installation of the plugin
+		 * by the time this is reached. See wfUtils::requireIpLocator for additional details.
+		 */
+		if (!class_exists('wfIpLocator'))
+			require_once __DIR__ . '/../lib/wfIpLocator.php';
+		return wfIpLocator::getInstance()->getCountryCode($ip);
 	}
 	
 	/**

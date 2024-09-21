@@ -1,0 +1,23 @@
+{
+    "name": "wpmudev/wpmudev-analytics",
+    "require-dev": {
+        "mixpanel/mixpanel-php": "^2.11",
+        "humbug/php-scoper": "^0.17.5"
+    },
+    "authors": [
+        {
+            "name": "Hassan Akhtar",
+            "email": "hassan@incsub.com"
+        }
+    ],
+  "require": {},
+  "autoload": {
+    "classmap": [
+      "vendor_prefixed/",
+      "core/"
+    ],
+    "exclude-from-classmap": [
+      "vendor/"
+    ]
+  }
+}

@@ -32,6 +32,9 @@ class Rest {
 		// Register smush meta fields and callbacks for the image object in the
 		// wp-json/wp/v2/media REST API endpoint.
 		add_action( 'rest_api_init', array( $this, 'register_smush_meta' ) );
+
+		// Custom route for handling configs.
+		add_action( 'rest_api_init', array( $this, 'register_configs_route' ) );
 	}
 
 	/**
@@ -69,25 +72,46 @@ class Rest {
 	 * @return array|string
 	 */
 	public function register_image_stats( $image ) {
-		if ( get_option( 'smush-in-progress-' . $image['id'], false ) ) {
-			$status_txt = __( 'Smushing in progress', 'wp-smushit' );
-			return $status_txt;
+		if ( get_transient( 'smush-in-progress-' . $image['id'] ) ) {
+			return __( 'Smushing in progress', 'wp-smushit' );
 		}
 
 		$wp_smush_data = get_post_meta( $image['id'], Modules\Smush::$smushed_meta_key, true );
 
 		if ( empty( $wp_smush_data ) ) {
-			$status_txt = __( 'Not processed', 'wp-smushit' );
-			return $status_txt;
+			return __( 'Not processed', 'wp-smushit' );
 		}
 
-		$wp_resize_savings  = get_post_meta( $image['id'], WP_SMUSH_PREFIX . 'resize_savings', true );
-		$conversion_savings = get_post_meta( $image['id'], WP_SMUSH_PREFIX . 'pngjpg_savings', true );
+		$wp_resize_savings  = get_post_meta( $image['id'], 'wp-smush-resize_savings', true );
+		$conversion_savings = get_post_meta( $image['id'], 'wp-smush-pngjpg_savings', true );
 
 		$combined_stats = WP_Smush::get_instance()->core()->combined_stats( $wp_smush_data, $wp_resize_savings );
-		$combined_stats = WP_Smush::get_instance()->core()->combine_conversion_stats( $combined_stats, $conversion_savings );
 
-		return $combined_stats;
+		return WP_Smush::get_instance()->core()->combine_conversion_stats( $combined_stats, $conversion_savings );
 	}
 
+	/**
+	 * Registers the custom route for handling configs.
+	 *
+	 * @since 3.8.6
+	 */
+	public function register_configs_route() {
+		$configs_handler = new Configs();
+		register_rest_route(
+			'wp-smush/v1',
+			'/preset_configs/',
+			array(
+				array(
+					'methods'             => 'GET',
+					'callback'            => array( $configs_handler, 'get_callback' ),
+					'permission_callback' => array( $configs_handler, 'permission_callback' ),
+				),
+				array(
+					'methods'             => 'POST',
+					'callback'            => array( $configs_handler, 'post_callback' ),
+					'permission_callback' => array( $configs_handler, 'permission_callback' ),
+				),
+			)
+		);
+	}
 }

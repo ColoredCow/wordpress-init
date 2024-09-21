@@ -8,9 +8,7 @@
 
 namespace Smush\Core\Integrations;
 
-use Smush\Core\Modules\CDN;
-use Smush\Core\Modules\Helpers\Parser;
-use Smush\Core\Settings;
+use Smush\Core\Controller;
 
 if ( ! defined( 'WPINC' ) ) {
 	die;
@@ -19,58 +17,43 @@ if ( ! defined( 'WPINC' ) ) {
 /**
  * Class Avada
  */
-class Avada {
-
-	/**
-	 * CDN module instance.
-	 *
-	 * @var CDN $cdn
-	 */
-	private $cdn;
-
-	/**
-	 * Avada constructor.
-	 *
-	 * @since 3.3.0
-	 *
-	 * @param CDN $cdn  CDN module.
-	 */
-	public function __construct( CDN $cdn ) {
-		$settings = Settings::get_instance();
-
-		if ( $settings->get( 'cdn' ) ) {
-			$this->cdn = $cdn;
-			add_filter( 'smush_cdn_bg_image_tag', array( $this, 'replace_cdn_links' ) );
-		}
+class Avada extends Controller {
+	public function __construct() {
+		$this->register_filter( 'wp_smush_get_image_attribute_names', array( $this, 'maybe_allow_avada_image_attributes_to_convert' ) );
+		$this->register_filter( 'wp_smush_should_skip_lazy_load', array( $this, 'maybe_skip_lazyload' ) );
+		// TODO: Add conflict notice with Avada theme.
 	}
 
-
-	/**
-	 * Replace images from data-bg-url with CDN links.
-	 *
-	 * @since 3.3.0
-	 *
-	 * @param string $img  Image.
-	 *
-	 * @return string
-	 */
-	public function replace_cdn_links( $img ) {
-		$image_src = Parser::get_attribute( $img, 'data-bg-url' );
-		if ( $image_src ) {
-			// Store the original source to be used later on.
-			$original_src = $image_src;
-
-			// Replace the data-bg-url of the image with CDN link.
-			if ( $this->cdn->is_supported_path( $image_src ) ) {
-				$image_src = $this->cdn->generate_cdn_url( $image_src );
-
-				if ( $image_src ) {
-					$img = preg_replace( '#(data-bg-url=["|\'])' . $original_src . '(["|\'])#i', '\1' . $image_src . '\2', $img, 1 );
-				}
-			}
+	public function maybe_allow_avada_image_attributes_to_convert( $attribute_names ) {
+		if ( $this->is_avada_active() ) {
+			$attribute_names[] = 'data-orig-src';
+			$attribute_names[] = 'data-bg-url';
 		}
 
-		return $img;
+		return $attribute_names;
 	}
 
+	public function maybe_skip_lazyload( $skip ) {
+		return $skip || $this->avada_lazyload_active();
+	}
+
+	private function avada_lazyload_active() {
+		if (
+			$this->is_avada_active() &&
+			class_exists( 'Fusion' ) &&
+			is_callable( array( \Fusion::get_instance(), 'get_images_obj' ) )
+		) {
+			$fussion_image_obj = \Fusion::get_instance()->get_images_obj();
+			return ! empty( $fussion_image_obj::$is_avada_lazy_load_images );
+		}
+
+		return false;
+	}
+
+	/**
+	 * Avada is a them so we cannot use this method as should_run.
+	 */
+	private function is_avada_active() {
+		return defined( 'AVADA_VERSION' ) && AVADA_VERSION || defined( 'FUSION_BUILDER_VERSION' ) && FUSION_BUILDER_VERSION;
+	}
 }

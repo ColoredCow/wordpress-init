@@ -5,11 +5,7 @@ if (!defined('WORDFENCE_VERSION')) { exit; }
  */
 ?>
 <?php
-if (wfOnboardingController::shouldShowAttempt3()) {
-	echo wfView::create('onboarding/disabled-overlay')->render();
-	echo wfView::create('onboarding/banner')->render();
-}
-else if (wfConfig::get('touppPromptNeeded')) {
+if (!wfOnboardingController::shouldShowAttempt3() && wfConfig::get('touppPromptNeeded')) {
 	echo wfView::create('gdpr/disabled-overlay')->render();
 	echo wfView::create('gdpr/banner')->render();
 }
@@ -19,12 +15,12 @@ else if (wfConfig::get('touppPromptNeeded')) {
 		<?php
 		$tabsArray = array();
 		if (wfCredentialsController::allowLegacy2FA()) {
-			$tabsArray[] = array('twofactor', __('Two-Factor Authentication'));
+			$tabsArray[] = array('twofactor', __('Two-Factor Authentication', 'wordfence'));
 		}
-		$tabsArray[] = array('livetraffic', __('Live Traffic'));
-		$tabsArray[] = array('whois', __('Whois Lookup'));
-		$tabsArray[] = array('importexport', __('Import/Export Options'));
-		$tabsArray[] = array('diagnostics', __('Diagnostics'));
+		$tabsArray[] = array('livetraffic', __('Live Traffic', 'wordfence'));
+		$tabsArray[] = array('whois', __('Whois Lookup', 'wordfence'));
+		$tabsArray[] = array('importexport', __('Import/Export Options', 'wordfence'));
+		$tabsArray[] = array('diagnostics', __('Diagnostics', 'wordfence'));
 
 		$tabs = array();
 		foreach ($tabsArray as $tab) {
